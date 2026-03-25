@@ -63,10 +63,6 @@ def main():
     msg = f"[backlog] {count} in-progress: {titles}. Consider /backlog to update status."
     print(json.dumps({
         "systemMessage": msg,
-        "hookSpecificOutput": {
-            "hookEventName": "Stop",
-            "additionalContext": msg,
-        },
     }))
 
 
