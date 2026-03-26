@@ -1,0 +1,48 @@
+{
+  "name": "claude-backlog",
+  "version": "0.1.0",
+  "description": "Milestone-linked task management with venture and journal integration",
+  "author": {
+    "name": "Shawn Whitney Anderson"
+  },
+  "license": "MIT",
+  "keywords": [
+    "backlog",
+    "tasks",
+    "milestones",
+    "planning",
+    "ventures",
+    "productivity"
+  ],
+  "skills": [
+    "./skills/"
+  ],
+  "commands": [
+    "./commands/"
+  ],
+  "agents": [
+    "./agents/taskmaster.md"
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/backlog-status.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/task-completion-check.py"
+          }
+        ]
+      }
+    ]
+  }
+}
