@@ -2,7 +2,6 @@
 description: "Create a new backlog task"
 argument-hint: "<title> [--milestone <id>] [--priority <level>]"
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
-model: sonnet
 ---
 
 Invoke the @task-writer subskill to create a new backlog task.

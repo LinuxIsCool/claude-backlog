@@ -2,7 +2,6 @@
 description: "View and manage the task backlog"
 argument-hint: "[plan | triage | browse <query> | stats]"
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
-model: sonnet
 ---
 
 Parse the user's argument and route accordingly:
