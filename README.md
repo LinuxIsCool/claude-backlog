@@ -43,7 +43,7 @@ Restart your Claude Code session. The `/backlog` and `/task` commands will be av
 ### Creating tasks
 
 ```
-/task Fix the 404 on TELUS embedding endpoint
+/task Fix the 404 on the embedding endpoint
 /task Deploy staging environment --priority critical --milestone ms-demo
 /task Write integration tests --priority high
 ```
