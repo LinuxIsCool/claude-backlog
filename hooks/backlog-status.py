@@ -56,17 +56,20 @@ def main():
         return
 
     # Parse frontmatter and count by status/priority
-    status_counts = {"To Do": 0, "In Progress": 0, "Blocked": 0, "Done": 0}
-    priority_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    status_counts: dict[str, int] = {}
+    priority_counts: dict[str, int] = {}
     nearest_due = None
     nearest_due_title = None
+
+    # Known non-active statuses — everything else counts as active
+    DONE_STATUSES = {"Done", "done", "Cancelled", "cancelled"}
 
     for f in task_files:
         fm = parse_frontmatter(f)
         status = fm.get("status", "To Do")
         priority = fm.get("priority", "medium")
         status_counts[status] = status_counts.get(status, 0) + 1
-        if status != "Done":
+        if status not in DONE_STATUSES:
             priority_counts[priority] = priority_counts.get(priority, 0) + 1
 
         # Check due dates
@@ -76,9 +79,10 @@ def main():
                 nearest_due = str(due)
                 nearest_due_title = fm.get("title", f.stem)
 
-    active = status_counts.get("To Do", 0) + status_counts.get("In Progress", 0) + status_counts.get("Blocked", 0)
+    done_count = sum(status_counts.get(s, 0) for s in DONE_STATUSES)
+    active = sum(status_counts.values()) - done_count
     if active == 0:
-        output(f"[backlog] all done · {status_counts.get('Done', 0)} completed")
+        output(f"[backlog] all done · {done_count} completed")
         return
 
     parts = [f"[backlog] {active} active"]
