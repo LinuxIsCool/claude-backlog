@@ -26,7 +26,20 @@ Agents MAY rely on the stability of:
    The skill description and subskill routing are part of the public surface.
    Subskill prompts may evolve; the routing contract should not.
 
-3. **The data contract**:
+3. **MCP tools** (Phase 4 of task-435 — `scripts/mcp_server.py`):
+   - `get_backlog_instructions` — returns the workflow doc
+   - `task_list`, `task_view`, `task_search`
+   - `task_create`, `task_edit`, `task_archive`
+   - `draft_list`, `draft_promote`
+   - `definition_of_done_defaults_get`, `definition_of_done_defaults_upsert`
+   Tool names + signatures are stable; argument names may grow additively
+   (new optional fields only) without a major-version bump.
+
+4. **MCP resource**:
+   - `claude-backlog://workflow/overview` (mime: `text/markdown`) —
+     canonical agent-onboarding doc. Mirrors `get_backlog_instructions`.
+
+5. **The data contract**:
    - File layout: `~/.claude/local/backlog/{config.yml,task-NNN - slug.md,drafts/,archive/,docs/}`
    - Filename convention: `task-NNN - slug.md` (drafts/archive: same)
    - Frontmatter schema as documented in `CLAUDE.md` "Frontmatter Contract"
@@ -34,12 +47,13 @@ Agents MAY rely on the stability of:
    - DoD doctrine: `definition_of_done` + `auto_inherit_dod` from `config.yml`.
    - Lifecycle: drafts/ → active → archive/, ID-stable across transitions.
 
-4. **Documented agent instructions**:
+6. **Documented agent instructions**:
    - This file (`AGENTS.md`)
    - Plugin `CLAUDE.md`
    - Skill descriptions
+   - `workflows/overview.md` (served as the MCP resource above)
 
-5. **The `/dock`-generated SKILL.md description** when this plugin is
+7. **The `/dock`-generated SKILL.md description** when this plugin is
    docked as a reference by other tooling.
 
 ## NOT a public surface

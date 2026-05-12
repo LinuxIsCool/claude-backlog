@@ -12,6 +12,31 @@ Milestone-linked task management. Tasks connect to milestones, milestones live i
 - `/draft create <title>` — capture an unscoped idea (Phase 2 of task-435)
 - `/draft list | promote <id> | demote <id>` — manage drafts/
 
+## MCP Server (Phase 4 of task-435)
+
+Registered via `.mcp.json`. Any MCP-aware client (Claude Code, Codex,
+Cursor, future Legion personas) gets these tools + 1 resource:
+
+| Tool | Read-only | Description |
+|---|---|---|
+| `get_backlog_instructions` | yes | Returns the workflow doc |
+| `task_list` | yes | List active tasks with filters |
+| `task_view` | yes | Full frontmatter + body for ID |
+| `task_search` | yes | Substring search title + body |
+| `task_create` | no | Create task — inherits DoD from config |
+| `task_edit` | no | Edit fields + check/uncheck AC + DoD (1-based) |
+| `task_archive` | no | Move to archive/. Idempotent |
+| `draft_list` | yes | List drafts in drafts/ |
+| `draft_promote` | no | Move draft → active. Inherits DoD |
+| `definition_of_done_defaults_get` | yes | Read project DoD defaults |
+| `definition_of_done_defaults_upsert` | no | Replace project DoD defaults |
+
+Resource: `claude-backlog://workflow/overview` (text/markdown) — the
+canonical agent-onboarding doc lives at `workflows/overview.md`.
+
+Run standalone: `uv run --directory <plugin-root> scripts/mcp_server.py`.
+Diagnostic: append `--diag`.
+
 ## Data Location
 Tasks: `~/.claude/local/backlog/task-NNN - title.md`
 Config: `~/.claude/local/backlog/config.yml`

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "claude-backlog": {
+      "command": "uv",
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}", "scripts/mcp_server.py"],
+      "env": {
+        "BACKLOG_ROOT": "${HOME}/.claude/local/backlog"
+      }
+    }
+  }
+}

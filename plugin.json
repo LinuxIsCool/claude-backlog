@@ -23,6 +23,7 @@
   "agents": [
     "./agents/taskmaster.md"
   ],
+  "mcpServers": "./.mcp.json",
   "hooks": {
     "SessionStart": [
       {
