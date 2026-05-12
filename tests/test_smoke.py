@@ -343,6 +343,62 @@ def test_error_path_task_not_found(tmp_path: Path) -> None:
     assert payload["error"]["code"] == "TASK_NOT_FOUND"
 
 
+def test_task_edit_renames_file_on_title_change(tmp_path: Path) -> None:
+    """task_edit re-slugifies the filename when title changes."""
+    _seed_config(tmp_path)
+
+    init = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "smoke", "version": "0.1"},
+        },
+    }
+    initialized = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+
+    # Create then rename via edit
+    resp = _rpc(
+        [
+            init,
+            initialized,
+            _tool_call(
+                "task_create",
+                {"title": "Original title", "priority": "low"},
+                10,
+            ),
+        ],
+        tmp_path,
+    )
+    create_payload = json.loads(_tool_text(_result_of(resp, 10)))
+    task_id = create_payload["task_id"]
+
+    # Verify initial slug
+    assert list(tmp_path.glob(f"task-{task_id} - original-title.md"))
+
+    # Edit title
+    resp2 = _rpc(
+        [
+            init,
+            initialized,
+            _tool_call(
+                "task_edit",
+                {"task_id": task_id, "title": "Renamed and improved"},
+                20,
+            ),
+        ],
+        tmp_path,
+    )
+    edit_payload = json.loads(_tool_text(_result_of(resp2, 20)))
+    assert edit_payload["ok"] is True
+
+    # Old filename gone, new filename present
+    assert not list(tmp_path.glob(f"task-{task_id} - original-title.md"))
+    assert list(tmp_path.glob(f"task-{task_id} - renamed-and-improved.md"))
+
+
 def test_dod_defaults_upsert(tmp_path: Path) -> None:
     """definition_of_done_defaults_upsert replaces config DoD."""
     _seed_config(tmp_path)

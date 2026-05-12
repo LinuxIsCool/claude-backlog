@@ -92,8 +92,13 @@ def slugify(title: str, max_len: int = _SLUG_MAX) -> str:
     return slug or "untitled"
 
 
-def _filename_for(task_id: int, title: str) -> str:
+def filename_for(task_id: int, title: str) -> str:
+    """Canonical filename for a task: `task-<id> - <slug>.md`."""
     return f"task-{task_id} - {slugify(title)}.md"
+
+
+# Backward-compat alias (kept in case any internal caller used the old name).
+_filename_for = filename_for
 
 
 def _parse_task_filename(name: str) -> tuple[int, str | None] | None:
@@ -359,7 +364,7 @@ def write_task(
     d = stage.dir(r)
     d.mkdir(parents=True, exist_ok=True)
     existing = find_task(task.id, Stage.ANY, r)
-    target = d / _filename_for(task.id, task.title)
+    target = d / filename_for(task.id, task.title)
     if existing is not None and existing != target:
         raise BacklogToolError(
             ErrorCode.ID_COLLISION,
@@ -378,8 +383,13 @@ def mv_task(
 ) -> Path:
     """Move a task file from one stage to another. ID-stable.
 
-    Filename slug is preserved from the source unless task title has changed
-    on disk (in which case we re-slugify). The integer ID never changes.
+    The full filename (`task-N - slug.md`) is preserved verbatim across
+    the move — the integer ID never changes and the slug does not re-
+    derive from the current title. If the title has been edited and you
+    want the filename to reflect that, call `write_task` (which
+    re-slugifies) after moving — but be aware this leaves the original
+    file in place; the cleanest pattern is a `read_task` → `write_task`
+    pair, not a `mv_task`.
     """
     src = find_task(task_id, from_stage, root)
     if src is None:

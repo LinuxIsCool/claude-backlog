@@ -488,9 +488,24 @@ async def task_edit(
         sep = "" if task.body.endswith("\n") else "\n"
         task = task.model_copy(update={"body": task.body + sep + "\n" + append_body + "\n"})
 
-    # Stage may have changed if title changed → new filename. write_task
-    # handles ID-collision; we ensure the existing file is updated in place.
-    path.write_text(task_to_text(task))
+    # If title changed, re-slug the filename so grep / on-disk view stays
+    # honest. ID stays the same — only the slug after `task-N - ` updates.
+    from claude_backlog.io import filename_for  # local import: utility
+    expected_name = filename_for(task.id, task.title)
+    if path.name != expected_name:
+        new_path = path.parent / expected_name
+        if new_path.exists() and new_path != path:
+            return _error_payload(BacklogToolError(
+                ErrorCode.ID_COLLISION,
+                f"Cannot rename to {new_path.name} — file already exists",
+                context={"task_id": task.id, "current": str(path), "target": str(new_path)},
+            ))
+        new_path.write_text(task_to_text(task))
+        if new_path != path:
+            path.unlink(missing_ok=True)
+        path = new_path
+    else:
+        path.write_text(task_to_text(task))
 
     return json.dumps({
         "ok": True,

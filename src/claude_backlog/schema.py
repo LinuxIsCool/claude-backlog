@@ -98,12 +98,6 @@ class Task(BaseModel):
             return [v]
         return v
 
-    @field_validator("depends_on", "blocks", "modified_files", mode="after")
-    @classmethod
-    def _coerce_int_list(cls, v: Any) -> Any:
-        """For numeric ID lists, coerce string 'task-NNN' to int. No-op for str-typed lists."""
-        return v  # placeholder — actual int-list coercion is field-specific below
-
     @field_validator("depends_on", "blocks", mode="before")
     @classmethod
     def _coerce_task_id_list(cls, v: Any) -> Any:
