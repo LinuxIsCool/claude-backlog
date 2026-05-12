@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["pyyaml"]
-# ///
 """
 Session-start hook: report backlog status.
 Outputs JSON with systemMessage (visible banner) and additionalContext (Claude sees).
+
+Imports the shared `claude_backlog` library so frontmatter parsing matches
+the MCP server + skill implementations exactly. Runs via:
+
+    uv run --directory ${CLAUDE_PLUGIN_ROOT} hooks/backlog-status.py
+
+Phase 4 of task-435 (Backlog.md cross-pollination): replaces inline
+`parse_frontmatter` with `claude_backlog.io.parse_frontmatter`.
 """
 
 import json
-import re
 import sys
-from pathlib import Path
+from datetime import date
 
-import yaml
-
-BACKLOG_ROOT = Path.home() / ".claude" / "local" / "backlog"
+from claude_backlog.io import BACKLOG_ROOT, parse_frontmatter
 
 
-def output(msg: str):
+def output(msg: str) -> None:
     """Output as JSON with both systemMessage and additionalContext."""
     print(json.dumps({
         "systemMessage": msg,
@@ -29,17 +30,7 @@ def output(msg: str):
     }))
 
 
-def parse_frontmatter(path: Path) -> dict:
-    content = path.read_text()
-    if not content.startswith("---"):
-        return {}
-    end = content.find("---", 3)
-    if end == -1:
-        return {}
-    return yaml.safe_load(content[3:end]) or {}
-
-
-def main():
+def main() -> None:
     # Consume stdin (Claude Code may pipe hook input)
     try:
         json.loads(sys.stdin.read() or "{}")
@@ -49,19 +40,16 @@ def main():
     if not BACKLOG_ROOT.exists():
         return
 
-    # Find all active task files (not in archive/)
     task_files = sorted(BACKLOG_ROOT.glob("task-*.md"))
     if not task_files:
         output("[backlog] empty · /task to create first")
         return
 
-    # Parse frontmatter and count by status/priority
     status_counts: dict[str, int] = {}
     priority_counts: dict[str, int] = {}
-    nearest_due = None
-    nearest_due_title = None
+    nearest_due: str | None = None
+    nearest_due_title: str | None = None
 
-    # Known non-active statuses — everything else counts as active
     DONE_STATUSES = {"Done", "done", "Cancelled", "cancelled"}
 
     for f in task_files:
@@ -72,7 +60,6 @@ def main():
         if status not in DONE_STATUSES:
             priority_counts[priority] = priority_counts.get(priority, 0) + 1
 
-        # Check due dates
         due = fm.get("due")
         if due and status != "Done":
             if nearest_due is None or str(due) < str(nearest_due):
@@ -92,7 +79,6 @@ def main():
         parts.append(f"{priority_counts['high']} high")
 
     if nearest_due:
-        from datetime import date
         try:
             due_date = date.fromisoformat(nearest_due)
             days_left = (due_date - date.today()).days

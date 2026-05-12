@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/backlog-status.py"
+            "command": "uv run --directory ${CLAUDE_PLUGIN_ROOT} hooks/backlog-status.py"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/task-completion-check.py"
+            "command": "uv run --directory ${CLAUDE_PLUGIN_ROOT} hooks/task-completion-check.py"
           }
         ]
       }

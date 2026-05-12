@@ -1,35 +1,19 @@
 #!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["pyyaml"]
-# ///
 """
 Stop hook: remind about in-progress tasks after significant sessions.
 Outputs JSON with systemMessage (visible) and additionalContext (Claude sees).
+
+Imports the shared `claude_backlog` library — Phase 4 of task-435.
 """
 
 import json
 import sys
-from pathlib import Path
 
-import yaml
-
-BACKLOG_ROOT = Path.home() / ".claude" / "local" / "backlog"
+from claude_backlog.io import BACKLOG_ROOT, parse_frontmatter
 
 
-def parse_frontmatter(path: Path) -> dict:
-    content = path.read_text()
-    if not content.startswith("---"):
-        return {}
-    end = content.find("---", 3)
-    if end == -1:
-        return {}
-    return yaml.safe_load(content[3:end]) or {}
-
-
-def main():
-    # Read hook input from stdin
-    hook_input = {}
+def main() -> None:
+    hook_input: dict = {}
     try:
         hook_input = json.loads(sys.stdin.read() or "{}")
     except (json.JSONDecodeError, ValueError):
@@ -37,16 +21,14 @@ def main():
 
     transcript_turns = hook_input.get("transcript_turns", 0)
 
-    # If very few turns, not worth checking
     if transcript_turns < 5:
         return
 
     if not BACKLOG_ROOT.exists():
         return
 
-    # Find in-progress tasks
     task_files = sorted(BACKLOG_ROOT.glob("task-*.md"))
-    in_progress = []
+    in_progress: list[str] = []
     for f in task_files:
         fm = parse_frontmatter(f)
         if fm.get("status") == "In Progress":
@@ -61,9 +43,7 @@ def main():
         titles += f" (+{count - 3} more)"
 
     msg = f"[backlog] {count} in-progress: {titles}. Consider /backlog to update status."
-    print(json.dumps({
-        "systemMessage": msg,
-    }))
+    print(json.dumps({"systemMessage": msg}))
 
 
 if __name__ == "__main__":
