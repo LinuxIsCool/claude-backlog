@@ -2,6 +2,8 @@
 
 Milestone-linked task management. Tasks connect to milestones, milestones live in ventures.
 
+**Agents**: read `AGENTS.md` first. It declares the public surface contract and the conventions agents should follow when creating, modifying, or moving tasks. The "AC vs DoD" distinction in particular is non-negotiable.
+
 ## Quick Start
 - `/task <title>` — create a new task
 - `/backlog` — show active tasks by priority
