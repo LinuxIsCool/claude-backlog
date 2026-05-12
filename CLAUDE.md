@@ -7,6 +7,8 @@ Milestone-linked task management. Tasks connect to milestones, milestones live i
 - `/backlog` — show active tasks by priority
 - `/backlog plan` — planning session: what to work on next
 - `/backlog triage` — review and prioritize open tasks
+- `/draft create <title>` — capture an unscoped idea (Phase 2 of task-435)
+- `/draft list | promote <id> | demote <id>` — manage drafts/
 
 ## Data Location
 Tasks: `~/.claude/local/backlog/task-NNN - title.md`
@@ -33,9 +35,18 @@ No SQLite. File-based only.
 
 ```
 ~/.claude/local/backlog/
-├── task-NNN - title.md     # e.g. "task-185 - Legion Web Stack.md"
-└── config.yml
+├── config.yml
+├── docs/
+│   └── template.md
+├── drafts/                     # Phase 2 of task-435 — unscoped ideas
+│   ├── README.md
+│   └── task-NNN - slug.md      # status: draft
+├── archive/
+│   └── task-NNN - slug.md      # terminal state
+└── task-NNN - slug.md          # active work (default)
 ```
+
+**Lifecycle**: `drafts/` → active → `archive/`. ID-stable across all transitions. Promoting a draft moves the file but never changes the ID. See `~/.claude/local/backlog/drafts/README.md`.
 
 ### Frontmatter Contract
 

@@ -27,10 +27,25 @@ Milestone-linked task management for Claude Code. Tasks are flat markdown files 
 ├── config.yml
 ├── docs/
 │   └── template.md
+├── drafts/                       # Phase 2 of task-435 — unscoped ideas
+│   ├── README.md                 # lifecycle doctrine
+│   └── task-NNN - title.md       # status: draft (lightweight, no DoD)
 ├── archive/
-│   └── task-NNN - title.md
-└── task-NNN - title.md
+│   └── task-NNN - title.md       # terminal state
+└── task-NNN - title.md           # active work (default state)
 ```
+
+## Lifecycle (4 stages, Phase 2 of task-435)
+
+```
+drafts/      ──/draft promote──▶  active     ──status: Done──▶  Done-in-active   ──/backlog archive──▶  archive/
+   ▲                                  │
+   └──────────/draft demote───────────┘
+```
+
+**ID-stable across all transitions.** A task keeps its `task-NNN` ID
+whether it lives in `drafts/`, active, or `archive/`. Only the directory
+prefix changes. See `~/.claude/local/backlog/drafts/README.md` for details.
 
 ## Task Frontmatter Schema
 
@@ -131,6 +146,10 @@ Cross-system references using namespace syntax.
 ### @task-triage
 **Trigger**: "triage", bulk review, stale task cleanup, archival, reconciliation.
 Reviews tasks with no updates in 30+ days, archives completed tasks, finds invalid milestone references.
+
+### @task-draft (Phase 2 of task-435)
+**Trigger**: "draft", "capture an idea", "unscoped", `/draft create | list | promote | demote`.
+Manages the drafts/ directory. Same ID space as active tasks, ID-stable across promotion/demotion. Lightweight frontmatter (no DoD on creation; DoD inherited on promotion). See `~/.claude/local/backlog/drafts/README.md`.
 
 ## Routing
 

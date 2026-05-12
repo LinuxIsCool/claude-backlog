@@ -1,10 +1,16 @@
 # Task Writer — Creating Backlog Tasks
 
-## ID Generation
+## ID Generation (ID-stable across drafts / active / archive)
 
-1. Glob `~/.claude/local/backlog/task-*.md`
-2. Extract numeric ID from each filename: `task-(\d+)`
-3. New ID = max(all extracted IDs) + 1. If no tasks exist, start at 1.
+Scan ALL of the following so IDs stay unique and stable across stage transitions:
+
+1. `~/.claude/local/backlog/task-*.md` (active)
+2. `~/.claude/local/backlog/drafts/task-*.md` (drafts, Phase 2 of task-435)
+3. `~/.claude/local/backlog/archive/task-*.md` (archive)
+
+Extract numeric ID from each filename via `task-(\d+)` regex. New ID = `max(all_extracted_ids) + 1`. If no tasks exist anywhere, start at 1.
+
+This is the invariant that lets `/draft promote <id>` move a file from `drafts/` to active without renaming or renumbering.
 
 ## Filename Convention
 
