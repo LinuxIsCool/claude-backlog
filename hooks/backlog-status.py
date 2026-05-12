@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["pyyaml>=6.0", "pydantic>=2.0"]
+# ///
 """
 Session-start hook: report backlog status.
 Outputs JSON with systemMessage (visible banner) and additionalContext (Claude sees).
@@ -10,13 +14,27 @@ the MCP server + skill implementations exactly. Runs via:
 
 Phase 4 of task-435 (Backlog.md cross-pollination): replaces inline
 `parse_frontmatter` with `claude_backlog.io.parse_frontmatter`.
+
+Resolution strategy (Track A follow-up, 2026-05-12): inject
+`<plugin>/src` into sys.path so the import works without needing
+`uv run` to find the project venv. Robust against fresh sessions
+whose venv isn't yet synced and concurrent runs racing on the venv
+lock. The `# /// script` block above provides a third resolution
+path via uv inline-script mode (zero project venv required).
 """
 
 import json
 import sys
 from datetime import date
+from pathlib import Path
 
-from claude_backlog.io import BACKLOG_ROOT, parse_frontmatter
+# Resolution path 1: inject src/ before any claude_backlog import.
+_PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+_SRC = _PLUGIN_ROOT / "src"
+if _SRC.is_dir() and str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from claude_backlog.io import BACKLOG_ROOT, parse_frontmatter  # noqa: E402
 
 
 def output(msg: str) -> None:
