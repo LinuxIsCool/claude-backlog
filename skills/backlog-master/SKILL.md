@@ -34,6 +34,8 @@ Milestone-linked task management for Claude Code. Tasks are flat markdown files 
 
 ## Task Frontmatter Schema
 
+### Canonical fields (always present)
+
 ```yaml
 ---
 id: 42
@@ -57,6 +59,44 @@ summary: "Find and curate 50 high-quality kelp forest images for Autolume traini
 final_summary: null
 ---
 ```
+
+### Optional additive fields (Phase 1 — Backlog.md cross-pollination, task-435)
+
+All optional. Absent = unset. Older tasks without these fields keep working unchanged.
+
+```yaml
+modified_files: []          # repo-relative paths an agent edited as part of this task
+ordinal: null               # int — custom sort within status column
+parent_task: null           # int — task ID this is a subtask of (use instead of dependencies for hierarchy)
+documentation: []           # doc IDs or URLs informing this task
+on_status_change: null      # str — shell command on status transition (DOCUMENTED, NOT YET ENFORCED)
+definition_of_done: []      # DoD checklist items, distinct from acceptance criteria
+```
+
+**Why `modified_files`** — lets agents find which task is relevant when editing a file. `grep -l "src/foo.ts" task-*.md` surfaces the task.
+
+**Why `definition_of_done` separate from acceptance criteria** — AC = scope/correctness ("did we build the right thing?"). DoD = completion hygiene ("tests written, docs updated, lint passes"). New tasks inherit project defaults from `config.yml` `definition_of_done` when `auto_inherit_dod: true`.
+
+**Why `ordinal`** — lets a human (or planner) hand-sort tasks within a column without rewriting priority.
+
+**Why `parent_task`** — structural hierarchy. `dependencies` express temporal blocking; `parent_task` expresses "this is a subtask of N."
+
+### Definition of Done — body section
+
+Every new task includes a `## Definition of Done` section after `## Acceptance Criteria`:
+
+```markdown
+## Definition of Done
+
+- [ ] Acceptance criteria met
+- [ ] Tests written or updated (if code path touched)
+- [ ] Documentation updated if needed
+- [ ] Type-check / lint passes (if code path touched)
+- [ ] Backlog status moved to Done
+- [ ] No known issues remaining
+```
+
+Inherited from `~/.claude/local/backlog/config.yml` `definition_of_done` defaults. Override per task by editing the section, or by passing `--no-dod-defaults` to `/task create`.
 
 ## ID Generation
 

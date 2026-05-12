@@ -54,8 +54,24 @@ blocks: []                           # optional, task IDs
 effort: null                         # optional
 due: null                            # optional, date
 venture: null                        # optional, venture slug
+
+# --- Additive optional fields (Phase 1 — Backlog.md cross-pollination, task-435) ---
+modified_files: []                   # optional, repo-relative paths an agent edited
+ordinal: null                        # optional, int — custom sort within column
+parent_task: null                    # optional, int — task ID this is a subtask of
+documentation: []                    # optional, doc IDs or URLs informing this task
+on_status_change: null               # optional, str — shell command on status transition (DOCUMENTED, NOT YET ENFORCED)
+definition_of_done: []               # optional, DoD checklist items (inherits config.yml defaults)
 ---
 ```
+
+### Definition of Done
+
+DoD is distinct from Acceptance Criteria:
+- **AC** = scope/correctness — what the task *delivers*.
+- **DoD** = completion hygiene — what is *always required* before status=Done.
+
+Project-level DoD defaults live in `~/.claude/local/backlog/config.yml` under `definition_of_done:`. When `auto_inherit_dod: true` (default), `/task create` copies them into the new task's `definition_of_done` frontmatter list and `## Definition of Done` body section. Override with `--no-dod-defaults` or per-task `--dod` flags.
 
 ### Canonical Count
 
