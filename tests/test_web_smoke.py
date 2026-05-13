@@ -95,6 +95,25 @@ def test_stats_returns_expected_keys() -> None:
     assert set(cb.keys()) == {"checked", "total", "ratio"}
 
 
+def test_list_summary_includes_modified_at() -> None:
+    """v0.2.5: list() summaries carry `modified_at` (ISO 8601 with timezone)
+    sourced from the cached mtime map. Browser uses this for relative-time
+    rendering so age reflects last-touched, not frontmatter date precision.
+
+    Contract: present on every item, either a parseable ISO string or null.
+    """
+    accessor = BacklogAccessor()
+    rows = accessor.list({"limit": 5})
+    assert rows, "list() returned empty result — corpus has tasks"
+    for row in rows:
+        assert "modified_at" in row, f"missing modified_at: {row.get('id')}"
+        ma = row["modified_at"]
+        if ma is not None:
+            # Parseable ISO 8601 with timezone offset.
+            from datetime import datetime
+            datetime.fromisoformat(ma)
+
+
 def test_stats_corpus_health_shape() -> None:
     """task-447 A3: stats() exposes corpus_health for the hygiene badge.
 
@@ -640,3 +659,29 @@ def test_static_index_renders_corpus_health_badge() -> None:
     assert "ISSUE" in html
     # Remediation hint shown when collisions > 0
     assert "scripts/dedupe_collisions.py --apply" in html
+
+
+def test_static_index_default_sort_is_newest_first() -> None:
+    """v0.2.5: default sort flipped from priority/asc to created/desc so
+    newly-created tasks land at the top of the list view without filtering.
+    Bookmarked URLs with explicit sort params continue to work unchanged."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # Default sort_col is created, default sort_dir is desc.
+    assert "initialParams.get('sort_col')  || 'created'" in html
+    assert "initialParams.get('sort_dir')  || 'desc'" in html
+    # URL-default-skip logic gates on (created, desc) — the new defaults.
+    assert "state.sort_col !== 'created' || state.sort_dir !== 'desc'" in html
+
+
+def test_static_index_age_uses_modified_at_when_available() -> None:
+    """v0.2.5: age column / card timestamp uses task.modified_at (file
+    mtime, ISO 8601 from server) when present, falling back to task.created
+    (YYYY-MM-DD frontmatter). Fixes "1d ago" rendering for tasks created
+    same-day but where created date parses to UTC midnight."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "function bestTime(" in html
+    assert "task.modified_at || task.created" in html
+    # No remaining call-sites rendering raw t.created via relativeTime.
+    assert "relativeTime(t.created)" not in html
+    # All three call-sites now go through bestTime.
+    assert html.count("relativeTime(bestTime(t))") >= 3

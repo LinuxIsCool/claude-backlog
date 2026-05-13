@@ -207,7 +207,11 @@ const SORT_DEFAULT_DIR        = {
 const initialParams = new URLSearchParams(location.search);
 
 window.BacklogApp = {
-  version: '0.2.3',
+  version: '0.2.5',
+  // Default sort: newest-first by created date (most recent activity surfaced
+  // immediately). Was priority/asc through v0.2.4 — operator feedback was
+  // that critical-priority dominance hid same-day tasks below the fold.
+  // URL ?sort_col=priority&sort_dir=asc still works if you bookmark it.
   state: {
     view:          (initialParams.get('view')          || 'kanban'),
     selected_id:   (initialParams.get('task')          || null),
@@ -219,8 +223,8 @@ window.BacklogApp = {
     creator_persona:  initialParams.get('creator_persona')  || '',
     assignee_persona: initialParams.get('assignee_persona') || '',
     include_done:  initialParams.get('include_done') === '1',
-    sort_col:      initialParams.get('sort_col')  || 'priority',
-    sort_dir:      initialParams.get('sort_dir')  || 'asc',
+    sort_col:      initialParams.get('sort_col')  || 'created',
+    sort_dir:      initialParams.get('sort_dir')  || 'desc',
     live:          (localStorage.getItem('legion.backlog.live') === '1'),
     corpus:        [],     // ALL tasks (cached locally; refreshed on load + poll)
     corpus_loaded: false,
@@ -343,6 +347,17 @@ function relativeTime(iso) {
   return `${Math.floor(d/86400/365)}y ago`;
 }
 
+/**
+ * Pick the highest-precision timestamp available for relative-time rendering.
+ * Server surfaces `modified_at` (ISO timestamp from file mtime) when known;
+ * `created` (YYYY-MM-DD frontmatter date) is the always-present fallback.
+ * Returns iso string suitable for relativeTime(); empty string when nothing.
+ */
+function bestTime(task) {
+  if (!task) return '';
+  return task.modified_at || task.created || '';
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
  * Search-term highlight (matchAll-based, builds DOM nodes, never inner-HTML)
  * ═══════════════════════════════════════════════════════════════════════ */
@@ -384,7 +399,7 @@ function pushUrlState() {
   if (state.creator_persona)     p.set('creator_persona', state.creator_persona);
   if (state.assignee_persona)    p.set('assignee_persona', state.assignee_persona);
   if (state.include_done)        p.set('include_done', '1');
-  if (state.sort_col !== 'priority' || state.sort_dir !== 'asc') {
+  if (state.sort_col !== 'created' || state.sort_dir !== 'desc') {
     p.set('sort_col', state.sort_col);
     p.set('sort_dir', state.sort_dir);
   }
@@ -844,7 +859,7 @@ function renderTaskCard(t) {
     el('div', { class: 'flex items-baseline gap-2 mb-1' },
       el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}`, title: `priority: ${t.priority}` }),
       el('span', { class: 'text-[0.6rem] text-overlay0 font-mono' }, `#${t.id}`),
-      el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(t.created)),
+      el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(bestTime(t))),
     ),
     el('div', { class: 'text-xs text-text mb-1.5 leading-snug' },
       ...buildExcerpt(t.title, state.q),
@@ -973,7 +988,7 @@ function renderList() {
       el('td', { class: 'px-2 py-1 text-overlay1' }, (t.tags || []).slice(0, 3).join(', ')),
       el('td', { class: 'px-2 py-1 text-overlay1' }, t.venture || ''),
       el('td', { class: 'px-2 py-1 text-overlay1' }, String(t.milestone || '')),
-      el('td', { class: 'px-2 py-1 text-overlay0 font-mono' }, relativeTime(t.created)),
+      el('td', { class: 'px-2 py-1 text-overlay0 font-mono' }, relativeTime(bestTime(t))),
     );
     tbody.appendChild(row);
   }
@@ -1108,7 +1123,7 @@ function renderAbout() {
   card.appendChild(el('div', { class: 'text-xs text-overlay1 space-y-1 font-mono' },
     el('div', null, 'kernel:    claude_webui.WebuiKernel'),
     el('div', null, 'namespace: legion.claude-backlog'),
-    el('div', null, 'version:   0.2.4 (corpus-health badge — task-447 A3)'),
+    el('div', null, 'version:   0.2.5 (newest-first default + modified_at age)'),
     el('div', null, 'endpoints: /healthz · /api/list · /api/detail/<id> · /api/stats · /api/feed · /api/facets · /api/search'),
   ));
   card.appendChild(el('div', { class: 'mt-4 text-xs text-overlay1 space-y-1' },
@@ -1139,7 +1154,7 @@ async function renderDetail() {
     el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}` }),
     el('span', { class: 'text-[0.7rem] text-overlay0 font-mono' }, `#${t.id}`),
     el('span', { class: `badge ${STATUS_BADGE[t.status_family]} ml-1` }, t.status_family),
-    el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(t.created)),
+    el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(bestTime(t))),
   ));
   slot.appendChild(el('h3', { class: 'text-sm font-medium text-text mb-2 leading-snug' }, ...buildExcerpt(t.title, state.q)));
   if (t.tags && t.tags.length) {

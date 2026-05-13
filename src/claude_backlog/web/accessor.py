@@ -150,8 +150,13 @@ class BacklogAccessor:
 
     def __init__(self, root: Path | None = None) -> None:
         self.root = root or BACKLOG_ROOT
-        # Per-stage cache. Keys: Stage enum. Values: (signature_tuple, tasks).
-        self._cache: dict[Any, tuple[tuple, list[Task]]] = {}
+        # Per-stage cache. Keys: Stage enum.
+        # Value: (signature_tuple, tasks, mtime_by_id_dict).
+        # The mtime map enables modified_at exposure in list/feed/search
+        # summaries without a second filesystem stat round-trip.
+        self._cache: dict[
+            Any, tuple[tuple, list[Task], dict[int, float]]
+        ] = {}
 
     # ----- caching layer ----------------------------------------------------
 
@@ -169,15 +174,47 @@ class BacklogAccessor:
             count += 1
         return (count, max_mtime)
 
+    def _refresh_cache(self, stage: Stage) -> tuple[list[Task], dict[int, float]]:
+        """Re-read stage; populate cache with (tasks, mtime_by_id)."""
+        # Build mtime map alongside the parse pass — single fs walk.
+        from claude_backlog.io import _parse_task_filename
+
+        tasks = list(list_tasks(stage, self.root))
+        mtime_by_id: dict[int, float] = {}
+        for p in _iter_stage_files(stage, self.root):
+            parsed = _parse_task_filename(p.name)
+            if parsed is None:
+                continue
+            try:
+                mtime_by_id[parsed[0]] = p.stat().st_mtime
+            except FileNotFoundError:
+                continue
+        return tasks, mtime_by_id
+
     def _cached_tasks(self, stage: Stage) -> list[Task]:
         """Return cached parsed Task[] for a stage, refreshing on mtime drift."""
         sig = self._signature(stage)
         cached = self._cache.get(stage)
         if cached is not None and cached[0] == sig:
             return cached[1]
-        tasks = list(list_tasks(stage, self.root))
-        self._cache[stage] = (sig, tasks)
+        tasks, mtimes = self._refresh_cache(stage)
+        self._cache[stage] = (sig, tasks, mtimes)
         return tasks
+
+    def _cached_mtimes(self, stage: Stage) -> dict[int, float]:
+        """Return cached {task_id: mtime} map. Refreshes on signature drift.
+
+        Used by _summary() to surface `modified_at` (ISO string) on every
+        list/feed/search response. Browser uses modified_at for relative-time
+        rendering so "1d ago" reflects last-touched, not frontmatter-date.
+        """
+        sig = self._signature(stage)
+        cached = self._cache.get(stage)
+        if cached is not None and cached[0] == sig:
+            return cached[2]
+        tasks, mtimes = self._refresh_cache(stage)
+        self._cache[stage] = (sig, tasks, mtimes)
+        return mtimes
 
     def invalidate_cache(self) -> None:
         """Manual invalidation (test seam; not used in steady state)."""
@@ -267,7 +304,20 @@ class BacklogAccessor:
         limit = int(params.get("limit", 1000) or 1000)
         page = kept[offset : offset + limit]
 
-        return [_summary(t) for t in page]
+        # Surface modified_at via the cached mtime map so the browser can
+        # render last-touched relative time accurately (not just frontmatter
+        # date precision). Drafts share the same accessor instance, so look
+        # up both stages.
+        mtimes_active = self._cached_mtimes(Stage.ACTIVE)
+        mtimes_drafts = self._cached_mtimes(Stage.DRAFTS)
+        mtimes_archive = self._cached_mtimes(Stage.ARCHIVE)
+        def _mtime_for(task_id: int) -> float | None:
+            return (
+                mtimes_active.get(task_id)
+                or mtimes_drafts.get(task_id)
+                or mtimes_archive.get(task_id)
+            )
+        return [_summary(t, mtime=_mtime_for(t.id)) for t in page]
 
     def detail(self, item_id: str) -> dict[str, Any]:
         """Return full record for a single task ID."""
@@ -483,8 +533,11 @@ class BacklogAccessor:
                 scored.append((score, t))
         scored.sort(key=lambda pair: -pair[0])
         results = []
+        mtimes_active = self._cached_mtimes(Stage.ACTIVE)
+        mtimes_drafts = self._cached_mtimes(Stage.DRAFTS)
         for score, t in scored[:limit]:
-            summary = _summary(t)
+            mtime = mtimes_active.get(t.id) or mtimes_drafts.get(t.id)
+            summary = _summary(t, mtime=mtime)
             summary["score"] = score
             summary["excerpt"] = _make_excerpt(t.body, terms)
             results.append(summary)
@@ -722,9 +775,21 @@ def _make_excerpt(body: str, terms: list[str], *, radius: int = 60) -> str:
     return excerpt
 
 
-def _summary(t: Task) -> dict[str, Any]:
-    """Compact JSON shape for list view."""
+def _summary(t: Task, *, mtime: float | None = None) -> dict[str, Any]:
+    """Compact JSON shape for list view.
+
+    `mtime`, when supplied, becomes `modified_at` (ISO 8601 with timezone)
+    so browser-side age rendering can use last-touched time instead of the
+    date-precision `created` frontmatter field. Caller (BacklogAccessor)
+    sources this from the cached mtime map; serializing as ISO keeps the
+    contract JSON-friendly.
+    """
+    from datetime import datetime, timezone
+
     checked, total = _count_checkboxes(t.body)
+    modified_at: str | None = None
+    if mtime is not None:
+        modified_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
     return {
         "id": t.id,
         "title": t.title,
@@ -732,6 +797,7 @@ def _summary(t: Task) -> dict[str, Any]:
         "status_family": _normalize_status(t.status),
         "priority": t.priority,
         "created": t.created.isoformat(),
+        "modified_at": modified_at,
         "tags": list(t.tags),
         "venture": t.venture,
         "milestone": t.milestone,
@@ -750,7 +816,11 @@ def _summary(t: Task) -> dict[str, Any]:
 
 def _detail(t: Task, path: Path) -> dict[str, Any]:
     """Full JSON shape for detail view."""
-    base = _summary(t)
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        mtime = None
+    base = _summary(t, mtime=mtime)
     base["body"] = t.body
     base["path"] = str(path)
     base["effort"] = t.effort
