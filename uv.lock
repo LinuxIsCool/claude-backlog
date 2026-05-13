@@ -101,9 +101,10 @@ wheels = [
 
 [[package]]
 name = "claude-backlog"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
+    { name = "claude-webui" },
     { name = "mcp" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -117,11 +118,24 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "claude-webui", editable = "../claude-webui" },
     { name = "mcp", specifier = ">=1.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "pyyaml", specifier = ">=6.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "claude-webui"
+version = "0.1.0"
+source = { editable = "../claude-webui" }
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
 ]
 provides-extras = ["dev"]
 

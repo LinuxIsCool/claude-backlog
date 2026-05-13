@@ -1,13 +1,20 @@
 [project]
 name = "claude-backlog"
-version = "0.1.0"
-description = "Milestone-linked task management with MCP server"
+version = "0.2.0"
+description = "Milestone-linked task management with MCP server + claude-webui satellite"
 requires-python = ">=3.12"
 dependencies = [
     "mcp>=1.0",
     "pyyaml>=6.0",
     "pydantic>=2.0",
+    # Phase 2 of task-441: claude-backlog is the first migrated satellite of
+    # the claude-webui Surfacing-cluster shell. Web UI lives entirely under
+    # claude_webui.WebuiKernel; this plugin supplies a BacklogAccessor.
+    "claude-webui",
 ]
+
+[tool.uv.sources]
+claude-webui = { path = "../claude-webui", editable = true }
 
 [project.optional-dependencies]
 dev = [
