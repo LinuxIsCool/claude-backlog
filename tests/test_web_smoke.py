@@ -562,3 +562,14 @@ def test_static_index_no_clamp_on_venture_or_milestone() -> None:
     # meta-line CSS class added; venture is no longer wrapped in clamp-1 on the card.
     assert ".meta-line" in html
     assert "meta-key" in html
+
+
+def test_static_index_minisearch_handles_duplicate_task_ids() -> None:
+    """Round-1.1 fix: corpus has 37 duplicate-id collisions (concurrent next_id race);
+    MiniSearch must key off __idx, not task.id, to avoid 'duplicate ID' crash on load."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # The synthetic key fix is the only thing standing between init() and a crash today.
+    assert "idField: '__idx'" in html
+    assert "t.__idx = idx" in html
+    # MiniSearch is constructed with __idx as identity, not id
+    assert "addAll(state.corpus.map((t, __idx)" in html

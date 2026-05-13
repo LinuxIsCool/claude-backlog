@@ -207,7 +207,7 @@ const SORT_DEFAULT_DIR        = {
 const initialParams = new URLSearchParams(location.search);
 
 window.BacklogApp = {
-  version: '0.2.1',
+  version: '0.2.2',
   state: {
     view:          (initialParams.get('view')          || 'kanban'),
     selected_id:   (initialParams.get('task')          || null),
@@ -404,6 +404,12 @@ async function loadCorpus() {
   // Single round-trip to pull ALL active tasks. Includes Done so kanban
   // can show the Done column without a separate request.
   const rows = await api('/api/list', { limit: LIST_VIEW_HARD_LIMIT, include_done: '1' });
+  // Stamp synthetic per-row index. Required because the live corpus carries
+  // task.id collisions (concurrent next_id() race in the underlying
+  // claude-backlog tool — 37 collisions as of 2026-05-12). MiniSearch keys
+  // off __idx; clientFilter uses __idx to intersect filter results with
+  // search hits without ambiguity.
+  rows.forEach((t, idx) => { t.__idx = idx; });
   state.corpus = rows;
   state.corpus_loaded = true;
   buildMiniSearchIndex();
@@ -418,18 +424,25 @@ async function loadDetail(id) {
  * MiniSearch — client-side index for instant filter + search
  * ═══════════════════════════════════════════════════════════════════════ */
 function buildMiniSearchIndex() {
+  // Corpus is allowed to contain duplicate task.id values today — concurrent
+  // agent next_id() scans race-condition produces colliding IDs on disk
+  // (see /stats and the corpus-hygiene findings). MiniSearch requires unique
+  // keys, so we use the array-position `__idx` as the index identity and
+  // store the original task.id as a separate field. Look-up in clientFilter
+  // hydrates back to state.corpus[__idx].
   const ms = new MiniSearch({
     fields: MINISEARCH_FIELDS,
-    storeFields: ['id'],   // We re-hydrate from state.corpus by id
+    storeFields: ['id', '__idx'],
     searchOptions: {
       boost: MINISEARCH_WEIGHTS,
       prefix: true,
       fuzzy: 0.2,
       combineWith: 'AND',
     },
-    idField: 'id',
+    idField: '__idx',
   });
-  ms.addAll(state.corpus.map((t) => ({
+  ms.addAll(state.corpus.map((t, __idx) => ({
+    __idx,
     id: t.id,
     title: t.title || '',
     tags_text: (t.tags || []).join(' '),
@@ -464,21 +477,27 @@ function clientFilter() {
     return true;
   });
   // Search via MiniSearch — intersects the filtered pool with text hits.
+  // We match by SYNTHETIC INDEX (__idx) rather than task.id because the corpus
+  // can contain duplicate task.id values (concurrent next_id() collisions).
   if (state.q && state.minisearch) {
     const q = state.q.trim();
-    const queryIds = new Set();
-    // Numeric query → also match the literal id field on the corpus
-    // (covers "446" matching task-446 even though body isn't indexed).
+    // Build a set of corpus-index positions that match. Two paths:
+    //   1. Numeric query → literal id substring/exact match on every row
+    //      (covers "446" finding BOTH task-446 entries).
+    //   2. MiniSearch fuzzy + prefix over title/tags/venture/milestone.
+    const matchedIdx = new Set();
     const numericMatch = /^\d+$/.test(q);
     if (numericMatch) {
-      for (const t of pool) {
+      state.corpus.forEach((t, idx) => {
         const idStr = String(t.id);
-        if (idStr === q || idStr.includes(q)) queryIds.add(t.id);
-      }
+        if (idStr === q || idStr.includes(q)) matchedIdx.add(idx);
+      });
     }
     const hits = state.minisearch.search(q, { combineWith: 'AND' });
-    for (const h of hits) queryIds.add(h.id);
-    pool = pool.filter((t) => queryIds.has(t.id));
+    for (const h of hits) matchedIdx.add(h.__idx);
+    // Intersect pool with matched indices via __idx identity (O(n)).
+    const poolSet = new Set(pool.map((t) => t.__idx));
+    pool = state.corpus.filter((t) => matchedIdx.has(t.__idx) && poolSet.has(t.__idx));
   }
   // Sort.
   pool.sort(sortComparator(state.sort_col, state.sort_dir));
@@ -1004,7 +1023,7 @@ function renderAbout() {
   card.appendChild(el('div', { class: 'text-xs text-overlay1 space-y-1 font-mono' },
     el('div', null, 'kernel:    claude_webui.WebuiKernel'),
     el('div', null, 'namespace: legion.claude-backlog'),
-    el('div', null, 'version:   0.2.1 (round-1 bug-fix pass)'),
+    el('div', null, 'version:   0.2.2 (round-1 + duplicate-ID fix)'),
     el('div', null, 'endpoints: /healthz · /api/list · /api/detail/<id> · /api/stats · /api/feed · /api/facets · /api/search'),
   ));
   card.appendChild(el('div', { class: 'mt-4 text-xs text-overlay1 space-y-1' },
