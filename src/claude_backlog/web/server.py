@@ -171,6 +171,20 @@ def build_kernel(
     mutation_catalog = MutationCatalog(audit_dir=audit_dir, timeout_s=5.0)
     register_handlers(mutation_catalog)
 
+    # Pre-warm the accessor cache on kernel startup so the first browser
+    # request doesn't pay the corpus-walk cost. The cache is keyed by Stage,
+    # so warm each stage the browser endpoints touch:
+    #   list()    → Stage.ACTIVE (default)
+    #   stats()   → Stage.ACTIVE + Stage.DRAFTS + mtimes(ARCHIVE)
+    #   facets()  → Stage.ACTIVE + Stage.DRAFTS
+    #   feed()    → Stage.ACTIVE
+    # ANY is its own key (used by SSE signature_fn); warm it too so the
+    # poller's first signature comparison is fast.
+    def _prewarm_corpus() -> None:
+        for stage in (Stage.ACTIVE, Stage.DRAFTS, Stage.ARCHIVE, Stage.ANY):
+            accessor._cached_tasks(stage)   # noqa: SLF001 — kernel-side wiring
+            accessor._cached_mtimes(stage)  # noqa: SLF001
+
     kernel = BacklogKernel(
         accessor=accessor,
         port=port,
@@ -180,6 +194,7 @@ def build_kernel(
         watch_paths=watch_paths,
         poll_interval_s=1.0,
         mutation_catalog=mutation_catalog,
+        prewarm=_prewarm_corpus,
     )
     kernel.satellite_namespace = NAMESPACE  # type: ignore[attr-defined]
     kernel.satellite_version = _BACKLOG_VERSION  # type: ignore[attr-defined]

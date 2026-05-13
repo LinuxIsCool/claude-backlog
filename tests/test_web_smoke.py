@@ -700,6 +700,31 @@ def test_build_kernel_wires_signature_fn_and_watch_paths(tmp_backlog) -> None:
     assert isinstance(kernel._watcher, (InotifyWatcher, SignaturePoller))
 
 
+def test_build_kernel_wires_prewarm_for_every_browser_stage(tmp_backlog) -> None:
+    """Reliability fix (v0.2.8): cold first-load was 5s for browser init
+    (4 parallel /api/* calls × 300-task corpus walk). Prewarm runs once
+    at kernel-startup and warms every stage the browser touches:
+    ACTIVE (list/feed) + DRAFTS + ARCHIVE + ANY (SSE signature).
+    Without this fix, killing `/browser` and reloading the tab made the
+    UI hang ~5-10s before content appeared."""
+    from claude_backlog.io import Stage
+    from claude_backlog.web.server import build_kernel
+
+    kernel = build_kernel(port=0, root=tmp_backlog)
+    assert kernel._prewarm is not None, "prewarm callable must be wired"
+    accessor = kernel.accessor
+    # Empty caches initially.
+    assert accessor._cache == {}, f"cache should start empty; got {accessor._cache}"
+    # Invoke prewarm directly.
+    kernel._prewarm()
+    # All four stages must be in the cache after prewarm.
+    cached_stages = set(accessor._cache.keys())
+    assert Stage.ACTIVE in cached_stages, f"prewarm missed ACTIVE; cached: {cached_stages}"
+    assert Stage.DRAFTS in cached_stages, f"prewarm missed DRAFTS; cached: {cached_stages}"
+    assert Stage.ARCHIVE in cached_stages, f"prewarm missed ARCHIVE; cached: {cached_stages}"
+    assert Stage.ANY in cached_stages, f"prewarm missed ANY; cached: {cached_stages}"
+
+
 def test_static_index_sort_age_uses_modified_at_then_created() -> None:
     """v0.2.7 sort fix: 'created' column key sorts by t.modified_at when
     present, falling back to t.created. The column LABEL is 'age' and the
