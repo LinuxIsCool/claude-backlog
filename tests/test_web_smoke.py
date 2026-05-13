@@ -673,6 +673,33 @@ def test_static_index_default_sort_is_newest_first() -> None:
     assert "state.sort_col !== 'created' || state.sort_dir !== 'desc'" in html
 
 
+def test_static_index_has_sse_event_source() -> None:
+    """v0.2.6 (R2/R3): browser subscribes to /api/events via EventSource for
+    real-time push, with polling as the safety net. Stops EventSource on
+    beforeunload to avoid leaked connections."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "new EventSource('/api/events')" in html
+    assert "addEventListener('corpus-changed'" in html
+    assert "addEventListener('connected'" in html
+    # Cleanup on tab close.
+    assert "beforeunload" in html
+    # Fallback poll still runs (longer interval when SSE active).
+    assert "POLL_INTERVAL_MS" in html
+
+
+def test_build_kernel_wires_signature_fn_and_watch_paths(tmp_backlog) -> None:
+    """build_kernel(...) constructs a BacklogKernel with signature_fn +
+    watch_paths so /api/events broadcasts immediately on disk changes."""
+    from claude_backlog.web.server import build_kernel
+
+    kernel = build_kernel(port=0, root=tmp_backlog)
+    assert kernel.event_bus is not None
+    assert kernel._watcher is not None
+    # Either InotifyWatcher (Linux + inotify_simple) or SignaturePoller (fallback).
+    from claude_webui.events import InotifyWatcher, SignaturePoller
+    assert isinstance(kernel._watcher, (InotifyWatcher, SignaturePoller))
+
+
 def test_static_index_age_uses_modified_at_when_available() -> None:
     """v0.2.5: age column / card timestamp uses task.modified_at (file
     mtime, ISO 8601 from server) when present, falling back to task.created

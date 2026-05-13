@@ -113,12 +113,14 @@ class BacklogKernel(WebuiKernel):
     def _make_handler_class(self) -> type[WebuiHandler]:
         accessor = self.accessor
         static_dir = self.static_dir
+        event_bus = self._event_bus
 
         class _Handler(BacklogHandler):
             pass
 
         _Handler.accessor = accessor
         _Handler.static_dir = static_dir
+        _Handler.event_bus = event_bus
         return _Handler
 
 
@@ -132,13 +134,40 @@ def build_kernel(
 
     Returns the kernel without calling `.serve()` so tests can drive the
     underlying server directly via `kernel.build_server()`.
+
+    Real-time push (R2/R3) is wired here: the kernel watches the backlog
+    root + drafts + archive directories via inotify when available, and
+    falls back to polling the accessor's `(count, max_mtime)` signature
+    every 1s. The browser EventSource on /api/events receives broadcasts
+    within <50ms (inotify) or <1s (polling).
     """
+    from claude_backlog.io import BACKLOG_ROOT, Stage
+
     accessor = BacklogAccessor(root=root)
+    backlog_root = root or BACKLOG_ROOT
+
+    # Watch all three stage directories. Drafts + archive may not exist
+    # yet on a fresh install; InotifyWatcher.available filters them out.
+    watch_paths = [
+        backlog_root,
+        backlog_root / "drafts",
+        backlog_root / "archive",
+    ]
+    watch_paths = [p for p in watch_paths if p.exists()]
+
+    # Signature fn is the polling fallback when inotify is unavailable.
+    # Use Stage.ANY so any file change in any stage drives a broadcast.
+    def _signature_for_push() -> tuple:
+        return accessor._signature(Stage.ANY)
+
     kernel = BacklogKernel(
         accessor=accessor,
         port=port,
         bind=bind,
         static_dir=STATIC_DIR,
+        signature_fn=_signature_for_push,
+        watch_paths=watch_paths,
+        poll_interval_s=1.0,
     )
     kernel.satellite_namespace = NAMESPACE  # type: ignore[attr-defined]
     kernel.satellite_version = _BACKLOG_VERSION  # type: ignore[attr-defined]

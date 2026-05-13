@@ -207,7 +207,7 @@ const SORT_DEFAULT_DIR        = {
 const initialParams = new URLSearchParams(location.search);
 
 window.BacklogApp = {
-  version: '0.2.5',
+  version: '0.2.6',
   // Default sort: newest-first by created date (most recent activity surfaced
   // immediately). Was priority/asc through v0.2.4 — operator feedback was
   // that critical-priority dominance hid same-day tasks below the fold.
@@ -1123,7 +1123,7 @@ function renderAbout() {
   card.appendChild(el('div', { class: 'text-xs text-overlay1 space-y-1 font-mono' },
     el('div', null, 'kernel:    claude_webui.WebuiKernel'),
     el('div', null, 'namespace: legion.claude-backlog'),
-    el('div', null, 'version:   0.2.5 (newest-first default + modified_at age)'),
+    el('div', null, 'version:   0.2.6 (SSE real-time push — R2/R3)'),
     el('div', null, 'endpoints: /healthz · /api/list · /api/detail/<id> · /api/stats · /api/feed · /api/facets · /api/search'),
   ));
   card.appendChild(el('div', { class: 'mt-4 text-xs text-overlay1 space-y-1' },
@@ -1195,17 +1195,79 @@ function selectTask(id) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
- * Live polling
+ * Live polling + SSE push (R2/R3)
+ *
+ * The browser tries SSE (Server-Sent Events) first via /api/events. On a
+ * `corpus-changed` event from the kernel's SignaturePoller / InotifyWatcher,
+ * we trigger an immediate reload — typically <50ms after the file changed
+ * on disk. EventSource has built-in auto-reconnect so we don't manage retry.
+ *
+ * If SSE returns 204 (kernel didn't wire push) OR the connection errors
+ * persistently, we fall back to the legacy 8s poll loop. The two paths are
+ * intentionally idempotent — reloading corpus + stats is cheap (mtime cache
+ * skips re-parse) and concurrent calls deduplicate naturally.
  * ═══════════════════════════════════════════════════════════════════════ */
 let _pollTimer = null;
-function schedulePoll() {
-  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
-  if (!state.live) return;
-  _pollTimer = setInterval(() => trace('poll', async () => {
+let _sse = null;
+let _sseRetryDelay = 1000;  // exponential backoff for EventSource onerror
+
+async function _refreshAll() {
+  await trace('refresh', async () => {
     await Promise.all([loadHealth(), loadStats(), loadFacets(), loadCorpus()]);
     renderHealth(); renderLeftNav(); renderView();
-  }), POLL_INTERVAL_MS);
+  });
 }
+
+function _startSSE() {
+  if (typeof EventSource === 'undefined') return false;
+  try {
+    _sse = new EventSource('/api/events');
+  } catch (e) {
+    return false;
+  }
+  _sse.addEventListener('connected', () => {
+    // First connect succeeded — reset backoff.
+    _sseRetryDelay = 1000;
+    setStatus('SSE connected — real-time updates active');
+  });
+  _sse.addEventListener('corpus-changed', () => {
+    // File changed on disk → refresh immediately.
+    _refreshAll();
+  });
+  _sse.onerror = () => {
+    // EventSource will auto-reconnect; bump backoff for status text only.
+    setStatus(`SSE disconnected — retrying in ${_sseRetryDelay / 1000}s`);
+    _sseRetryDelay = Math.min(_sseRetryDelay * 2, 30000);
+  };
+  return true;
+}
+
+function _stopSSE() {
+  if (_sse) {
+    _sse.close();
+    _sse = null;
+  }
+}
+
+function schedulePoll() {
+  // Clean previous timers + SSE.
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  _stopSSE();
+  if (!state.live) return;
+
+  // Try SSE first. If unavailable (very old browser), fall through to poll.
+  const sseStarted = _startSSE();
+
+  // Always run a slow safety-net poll regardless of SSE state. SSE handles
+  // sub-second push; the poll covers (a) the case where SSE responded 204
+  // because the kernel didn't wire push, (b) heartbeat-only stretches where
+  // a missed event would otherwise leave the UI stale.
+  const interval = sseStarted ? POLL_INTERVAL_MS * 4 : POLL_INTERVAL_MS;
+  _pollTimer = setInterval(() => _refreshAll(), interval);
+}
+
+// Tear down SSE on page hide so we don't leak connections.
+window.addEventListener('beforeunload', () => _stopSSE());
 
 /* ═══════════════════════════════════════════════════════════════════════
  * View dispatch — re-renders only the dynamic regions
