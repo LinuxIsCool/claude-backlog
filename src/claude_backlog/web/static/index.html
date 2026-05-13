@@ -207,7 +207,7 @@ const SORT_DEFAULT_DIR        = {
 const initialParams = new URLSearchParams(location.search);
 
 window.BacklogApp = {
-  version: '0.2.2',
+  version: '0.2.3',
   state: {
     view:          (initialParams.get('view')          || 'kanban'),
     selected_id:   (initialParams.get('task')          || null),
@@ -479,28 +479,58 @@ function clientFilter() {
   // Search via MiniSearch — intersects the filtered pool with text hits.
   // We match by SYNTHETIC INDEX (__idx) rather than task.id because the corpus
   // can contain duplicate task.id values (concurrent next_id() collisions).
+  //
+  // RELEVANCE-OVERRIDES-SORT semantics:
+  //   When a query is active, results sort by RELEVANCE score (exact-id
+  //   matches first, then substring/MiniSearch hits). The user's column
+  //   sort kicks in only when the query is empty.
+  //   Rationale: searching "446" should put task-446 at the top, not let
+  //   priority-asc bury it under critical/high adjacent-id fuzzy matches.
+  //
+  // NUMERIC-QUERY semantics:
+  //   A pure-digit query is an ID lookup. ID-exact (score 100) and
+  //   ID-substring (score 50) only — no MiniSearch fuzzy. Otherwise
+  //   "446" matches 440/441/442/443/444/445 by edit distance 1, which
+  //   floods the result and buries the exact match.
+  let searchActive = false;
   if (state.q && state.minisearch) {
+    searchActive = true;
     const q = state.q.trim();
-    // Build a set of corpus-index positions that match. Two paths:
-    //   1. Numeric query → literal id substring/exact match on every row
-    //      (covers "446" finding BOTH task-446 entries).
-    //   2. MiniSearch fuzzy + prefix over title/tags/venture/milestone.
-    const matchedIdx = new Set();
     const numericMatch = /^\d+$/.test(q);
+    const matchedIdx = new Map();  // __idx → score
     if (numericMatch) {
+      // Pure-numeric: ID-only matching. No MiniSearch path.
       state.corpus.forEach((t, idx) => {
         const idStr = String(t.id);
-        if (idStr === q || idStr.includes(q)) matchedIdx.add(idx);
+        if (idStr === q) matchedIdx.set(idx, 100);
+        else if (idStr.includes(q)) matchedIdx.set(idx, 50);
+      });
+    } else {
+      // Text query: MiniSearch fuzzy + prefix over title/tags/venture/milestone.
+      const hits = state.minisearch.search(q, { combineWith: 'AND' });
+      for (const h of hits) matchedIdx.set(h.__idx, h.score || 1);
+      // ALSO add any task whose ID literally contains the query (covers
+      // mixed queries like "446 webui" where "446" is one of the tokens).
+      state.corpus.forEach((t, idx) => {
+        const idStr = String(t.id);
+        if (idStr.includes(q)) {
+          const boost = idStr === q ? 100 : 50;
+          matchedIdx.set(idx, Math.max(matchedIdx.get(idx) || 0, boost));
+        }
       });
     }
-    const hits = state.minisearch.search(q, { combineWith: 'AND' });
-    for (const h of hits) matchedIdx.add(h.__idx);
-    // Intersect pool with matched indices via __idx identity (O(n)).
+    // Intersect pool with matched indices via __idx identity, preserve score.
     const poolSet = new Set(pool.map((t) => t.__idx));
-    pool = state.corpus.filter((t) => matchedIdx.has(t.__idx) && poolSet.has(t.__idx));
+    pool = [...matchedIdx.entries()]
+      .filter(([idx]) => poolSet.has(idx))
+      .sort((a, b) => b[1] - a[1])
+      .map(([idx]) => state.corpus[idx])
+      .filter(Boolean);
   }
   // Sort.
-  pool.sort(sortComparator(state.sort_col, state.sort_dir));
+  if (!searchActive) {
+    pool.sort(sortComparator(state.sort_col, state.sort_dir));
+  }
   return pool;
 }
 
@@ -667,12 +697,16 @@ function renderFilterChips() {
     );
     slot.appendChild(chip);
   }
-  // sort chip
+  // sort chip — shows "relevance" when search is active (search overrides sort)
+  const sortLabel = state.q
+    ? `Sort: relevance (search active)`
+    : `Sort: ${state.sort_col} ${state.sort_dir}`;
   slot.appendChild(el('div', { class: 'relative inline-block ml-2' },
     el('button', {
-      class: 'chip border rounded px-2 py-1 border-surface0 text-subtext0',
+      class: 'chip border rounded px-2 py-1 ' + (state.q ? 'active' : 'border-surface0 text-subtext0'),
+      title: state.q ? 'Search results sorted by relevance. Clear search to use column sort.' : '',
       onclick: (e) => toggleSortMenu(e.currentTarget),
-    }, `Sort: ${state.sort_col} ${state.sort_dir}`, el('span', { class: 'ml-1 text-overlay0' }, '▾')),
+    }, sortLabel, el('span', { class: 'ml-1 text-overlay0' }, '▾')),
   ));
   // include-done toggle
   slot.appendChild(el('button', {
@@ -1023,7 +1057,7 @@ function renderAbout() {
   card.appendChild(el('div', { class: 'text-xs text-overlay1 space-y-1 font-mono' },
     el('div', null, 'kernel:    claude_webui.WebuiKernel'),
     el('div', null, 'namespace: legion.claude-backlog'),
-    el('div', null, 'version:   0.2.2 (round-1 + duplicate-ID fix)'),
+    el('div', null, 'version:   0.2.3 (round-1 + dup-ID + numeric-search semantics)'),
     el('div', null, 'endpoints: /healthz · /api/list · /api/detail/<id> · /api/stats · /api/feed · /api/facets · /api/search'),
   ));
   card.appendChild(el('div', { class: 'mt-4 text-xs text-overlay1 space-y-1' },

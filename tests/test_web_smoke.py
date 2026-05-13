@@ -573,3 +573,23 @@ def test_static_index_minisearch_handles_duplicate_task_ids() -> None:
     assert "t.__idx = idx" in html
     # MiniSearch is constructed with __idx as identity, not id
     assert "addAll(state.corpus.map((t, __idx)" in html
+
+
+def test_static_index_numeric_query_uses_id_only_matching() -> None:
+    """Round-1.2 fix: numeric query '446' must NOT match adjacent IDs via fuzzy."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "numericMatch = /^\\d+$/.test(q)" in html
+    # ID-exact score 100; ID-substring score 50.
+    assert "matchedIdx.set(idx, 100)" in html
+    assert "matchedIdx.set(idx, 50)" in html
+    # When numericMatch path runs, MiniSearch fuzzy is bypassed.
+    assert "Pure-numeric: ID-only matching. No MiniSearch path." in html
+
+
+def test_static_index_search_overrides_sort() -> None:
+    """Round-1.2 fix: when search active, results sort by RELEVANCE, not column sort."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "searchActive" in html
+    assert "if (!searchActive)" in html
+    # Sort chip displays "relevance" when search is active
+    assert "Sort: relevance (search active)" in html
