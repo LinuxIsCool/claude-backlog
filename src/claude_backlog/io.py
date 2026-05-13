@@ -425,6 +425,28 @@ def find_task(
     return None
 
 
+def find_collisions(root: Path | None = None) -> dict[int, list[Path]]:
+    """Return ID groups with >= 2 files on disk across all stages.
+
+    Used by:
+      - /api/stats hygiene badge in the satellite UI (task-447 A3)
+      - scripts/dedupe_collisions.py migration tool (task-447 A2)
+
+    Post-flock-fix this should always return {} for a healthy corpus.
+    A non-empty result is a regression signal that either (a) the lock
+    fell off, (b) a foreign tool wrote tasks without going through
+    reserve_id(), or (c) someone manually edited files into a clash.
+    """
+    from collections import defaultdict
+
+    by_id: dict[int, list[Path]] = defaultdict(list)
+    for p in _iter_stage_files(Stage.ANY, root):
+        parsed = _parse_task_filename(p.name)
+        if parsed is not None:
+            by_id[parsed[0]].append(p)
+    return {tid: paths for tid, paths in by_id.items() if len(paths) >= 2}
+
+
 def list_tasks(
     stage: Stage = Stage.ACTIVE,
     root: Path | None = None,

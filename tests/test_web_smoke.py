@@ -87,11 +87,42 @@ def test_stats_returns_expected_keys() -> None:
         "by_priority",
         "by_venture",
         "checkbox_progress",
+        "corpus_health",  # task-447 A3
         "namespace",
     ):
         assert key in s, f"missing key {key!r} in stats"
     cb = s["checkbox_progress"]
     assert set(cb.keys()) == {"checked", "total", "ratio"}
+
+
+def test_stats_corpus_health_shape() -> None:
+    """task-447 A3: stats() exposes corpus_health for the hygiene badge.
+
+    Contract: collision_count is an int >= 0, colliding_ids is a list of
+    ints (capped at 50 to bound API payload), parse_failures is an int,
+    total_files is an int matching the on-disk count.
+    """
+    s = BacklogAccessor().stats()
+    health = s["corpus_health"]
+    assert isinstance(health, dict)
+    assert set(health.keys()) == {
+        "total_files",
+        "collision_count",
+        "colliding_ids",
+        "parse_failures",
+    }
+    assert isinstance(health["total_files"], int)
+    assert health["total_files"] >= 0
+    assert isinstance(health["collision_count"], int)
+    assert health["collision_count"] >= 0
+    assert isinstance(health["colliding_ids"], list)
+    # Length bounded to 50 even if more exist.
+    assert len(health["colliding_ids"]) <= 50
+    assert all(isinstance(x, int) for x in health["colliding_ids"])
+    assert isinstance(health["parse_failures"], int)
+    # Invariant: collision_count == 0  ⇒  empty colliding_ids list.
+    if health["collision_count"] == 0:
+        assert health["colliding_ids"] == []
 
 
 def test_feed_returns_chrono_order() -> None:
@@ -593,3 +624,19 @@ def test_static_index_search_overrides_sort() -> None:
     assert "if (!searchActive)" in html
     # Sort chip displays "relevance" when search is active
     assert "Sort: relevance (search active)" in html
+
+
+def test_static_index_renders_corpus_health_badge() -> None:
+    """task-447 A3: /stats view shows a corpus-health badge that reads
+    `CLEAN` when collision_count + parse_failures == 0 and flips red when
+    either is non-zero. Operator-visible regression signal."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "CORPUS HEALTH" in html
+    assert "corpus_health" in html
+    assert "collision_count" in html
+    assert "parse_failures" in html
+    # Both the OK and warning branches must be present.
+    assert "CLEAN" in html
+    assert "ISSUE" in html
+    # Remediation hint shown when collisions > 0
+    assert "scripts/dedupe_collisions.py --apply" in html

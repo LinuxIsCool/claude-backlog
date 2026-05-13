@@ -38,6 +38,7 @@ from claude_backlog.io import (
     BACKLOG_ROOT,
     Stage,
     _iter_stage_files,
+    find_collisions,
     find_task,
     list_tasks,
     read_task,
@@ -320,6 +321,29 @@ class BacklogAccessor:
         # in by_status_family so the column shows non-zero when drafts exist.
         if drafts:
             by_status_family["Draft"] = by_status_family.get("Draft", 0) + len(drafts)
+
+        # Corpus-health hygiene (task-447 A3): surface ID collision count and
+        # parse-failure count. After the flock fix + dedupe migration this
+        # should hold steady at collision_count=0 — a non-zero value is a
+        # regression signal worth investigating.
+        collisions = find_collisions(self.root)
+        colliding_ids = sorted(collisions.keys())
+        # Cap colliding_ids payload at 50 to keep response size bounded.
+        colliding_ids_truncated = colliding_ids[:50]
+        # Audit unparseable files (separate from collisions — corpus hygiene
+        # not all caused by races). One bad-YAML file is the only known
+        # failure mode today.
+        parse_failures = 0
+        total_files = 0
+        for p in _iter_stage_files(Stage.ANY, self.root):
+            total_files += 1
+            try:
+                read_task(p)
+            except BacklogToolError:
+                parse_failures += 1
+            except Exception:  # pragma: no cover  — defensive
+                parse_failures += 1
+
         return {
             "active_total": len(active),
             "drafts_total": len(drafts),
@@ -333,6 +357,12 @@ class BacklogAccessor:
                 "checked": checkbox_checked,
                 "total": checkbox_total,
                 "ratio": (checkbox_checked / checkbox_total) if checkbox_total else 0.0,
+            },
+            "corpus_health": {
+                "total_files": total_files,
+                "collision_count": len(collisions),
+                "colliding_ids": colliding_ids_truncated,
+                "parse_failures": parse_failures,
             },
             "namespace": NAMESPACE,
         }
