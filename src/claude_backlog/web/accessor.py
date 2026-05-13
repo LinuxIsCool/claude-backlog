@@ -62,6 +62,66 @@ _PRIORITY_RANK: dict[str, int] = {
 # Match `[ ]` or `[x]` (case-insensitive) at the start of a list item.
 _CHECKBOX_RE: re.Pattern[str] = re.compile(r"^\s*-\s*\[( |x|X)\]\s+", re.MULTILINE)
 
+# Canonical status families (5). The live corpus has 24 distinct status
+# strings; this map normalizes them so the kanban can render reliably.
+# Keys are status strings lowercased + stripped; values are the canonical
+# family name. Unmapped strings fall back to "To Do" (see _normalize_status).
+#
+# Doctrine: this lives ON THE SERVER so every adapter (web UI / MCP / hooks)
+# sees the same normalization. The raw status string remains accessible on
+# every Task summary so audits / migrations / corpus hygiene work isn't lost.
+_STATUS_FAMILY: dict[str, str] = {
+    # ── To Do family ────────────────────────────────────────────────
+    "to do":            "To Do",
+    "todo":             "To Do",
+    "backlog":          "To Do",
+    "pending":          "To Do",
+    "open":             "To Do",
+    "ready":            "To Do",
+    "active":           "To Do",
+    "planned":          "To Do",
+    "proposed":         "To Do",
+    "discussion":       "To Do",
+    # ── In Progress family ──────────────────────────────────────────
+    "in progress":      "In Progress",
+    "in-progress":      "In Progress",
+    "inprogress":       "In Progress",
+    "wip":              "In Progress",
+    # ── Blocked family ──────────────────────────────────────────────
+    "blocked":          "Blocked",
+    "waiting":          "Blocked",
+    "stalled":          "Blocked",
+    # ── Done family ────────────────────────────────────────────────
+    "done":             "Done",
+    "complete":         "Done",
+    "completed":        "Done",
+    "shipped":          "Done",
+    "phase-0-shipped":  "Done",
+    "phase-1-shipped":  "Done",
+    "phase-2-shipped":  "Done",
+    "tier-1-shipped":   "Done",
+    "tier-2-shipped":   "Done",
+    "cancelled":        "Done",
+    "superseded":       "Done",
+    # ── Draft family ───────────────────────────────────────────────
+    "draft":            "Draft",
+}
+
+# The 5 canonical families the kanban renders. Order = column order L→R.
+CANONICAL_STATUSES: tuple[str, ...] = ("To Do", "In Progress", "Blocked", "Done", "Draft")
+
+
+def _normalize_status(raw: str | None) -> str:
+    """Map any status string to one of CANONICAL_STATUSES.
+
+    Pure function — used by `list`, `stats`, `facets`, and `search`. Keeps
+    the kanban deterministic regardless of corpus drift.
+    """
+    if not raw:
+        return "To Do"
+    key = str(raw).strip().lower()
+    return _STATUS_FAMILY.get(key, "To Do")
+
 
 # --- Public accessor --------------------------------------------------------
 
@@ -87,34 +147,43 @@ class BacklogAccessor:
         """Return task summaries matching the query parameters.
 
         Recognized params (all optional):
-          stage    - "active" (default) | "drafts" | "archive" | "any"
-          status   - exact match on `status`, case-insensitive
-          priority - one of critical|high|medium|low
-          tag      - tag substring (case-insensitive)
-          venture  - substring on the `venture` field
-          q        - free-text substring across title + body
+          stage          - "active" (default) | "drafts" | "archive" | "any"
+          status         - exact match on raw `status` string, case-insensitive
+          status_family  - one of CANONICAL_STATUSES (To Do / In Progress /
+                           Blocked / Done / Draft) — preferred filter for UI
+          priority       - one of critical|high|medium|low
+          tag            - tag substring (case-insensitive)
+          venture        - substring on the `venture` field
+          q              - free-text substring across title + body
           creator_persona, assignee_persona - persona slug match
-          include_done - "1" to include Done/Cancelled (default exclude)
-          limit    - cap rows (default 1000 — corpus is ~286 today)
-          offset   - pagination offset (default 0)
+          include_done   - "1" to include Done/Cancelled (default exclude
+                           — except when status_family='Done' which forces include)
+          limit          - cap rows (default 1000 — corpus is ~293 today)
+          offset         - pagination offset (default 0)
         """
         stage = _stage_from_param(params.get("stage", "active"))
         tasks: list[Task] = list(list_tasks(stage, self.root))
 
         # Filter
         status = _strip(params.get("status"))
+        status_family = _strip(params.get("status_family"))
         priority = _strip(params.get("priority"))
         tag = _strip(params.get("tag"))
         venture = _strip(params.get("venture"))
         q = _strip(params.get("q"))
         creator = _strip(params.get("creator_persona"))
         assignee = _strip(params.get("assignee_persona"))
-        include_done = str(params.get("include_done", "")).lower() in {"1", "true", "yes"}
+        include_done = (
+            str(params.get("include_done", "")).lower() in {"1", "true", "yes"}
+            or status_family == "Done"
+        )
 
         def keep(t: Task) -> bool:
             if not include_done and t.status.lower() in _DONE_STATUSES:
                 return False
             if status and t.status.lower() != status.lower():
+                return False
+            if status_family and _normalize_status(t.status) != status_family:
                 return False
             if priority and t.priority != priority.lower():
                 return False
@@ -174,10 +243,11 @@ class BacklogAccessor:
         return _detail(t, path)
 
     def stats(self) -> dict[str, Any]:
-        """Aggregate counts across the active corpus."""
+        """Aggregate counts across the active + drafts corpus."""
         active = list(list_tasks(Stage.ACTIVE, self.root))
         drafts = list(list_tasks(Stage.DRAFTS, self.root))
-        by_status: dict[str, int] = {}
+        by_status: dict[str, int] = {}        # raw status strings (24+ today)
+        by_status_family: dict[str, int] = {}  # canonical 5 families
         by_priority: dict[str, int] = {}
         by_venture: dict[str, int] = {}
         by_creator: dict[str, int] = {}
@@ -186,6 +256,8 @@ class BacklogAccessor:
         checkbox_total = 0
         for t in active:
             by_status[t.status] = by_status.get(t.status, 0) + 1
+            family = _normalize_status(t.status)
+            by_status_family[family] = by_status_family.get(family, 0) + 1
             by_priority[t.priority] = by_priority.get(t.priority, 0) + 1
             if t.venture:
                 by_venture[t.venture] = by_venture.get(t.venture, 0) + 1
@@ -198,10 +270,15 @@ class BacklogAccessor:
             ak_p = t.extra_frontmatter.get("assignee_persona")
             if isinstance(ak_p, str):
                 by_assignee[ak_p] = by_assignee.get(ak_p, 0) + 1
+        # Drafts always fold into the Draft family for the kanban; mirror that
+        # in by_status_family so the column shows non-zero when drafts exist.
+        if drafts:
+            by_status_family["Draft"] = by_status_family.get("Draft", 0) + len(drafts)
         return {
             "active_total": len(active),
             "drafts_total": len(drafts),
             "by_status": by_status,
+            "by_status_family": by_status_family,
             "by_priority": by_priority,
             "by_venture": by_venture,
             "by_creator_persona": by_creator,
@@ -213,6 +290,110 @@ class BacklogAccessor:
             },
             "namespace": NAMESPACE,
         }
+
+    # ----- Extra-route methods (registered via extra_routes in server.py) -----
+
+    def facets(self) -> dict[str, Any]:
+        """Return all filter-chip values for the UI's filter bar.
+
+        Shape:
+          {
+            "priorities":     ["critical","high","medium","low"],   # canonical
+            "status_families": ["To Do","In Progress","Blocked","Done","Draft"],
+            "raw_statuses":   [{"value": str, "count": int}, ...]  # all 24-ish
+            "ventures":       [{"value": str, "count": int}, ...]
+            "tags":           [{"value": str, "count": int}, ...]
+            "creator_personas":  [{"value": str, "count": int}, ...]
+            "assignee_personas": [{"value": str, "count": int}, ...]
+            "milestones":     [{"value": str, "count": int}, ...]
+          }
+        Values sorted by descending count; ties by name.
+        """
+        tasks = list(list_tasks(Stage.ACTIVE, self.root)) + list(
+            list_tasks(Stage.DRAFTS, self.root)
+        )
+        raw_status: dict[str, int] = {}
+        ventures: dict[str, int] = {}
+        tags: dict[str, int] = {}
+        creators: dict[str, int] = {}
+        assignees: dict[str, int] = {}
+        milestones: dict[str, int] = {}
+        for t in tasks:
+            raw_status[t.status] = raw_status.get(t.status, 0) + 1
+            if t.venture:
+                ventures[t.venture] = ventures.get(t.venture, 0) + 1
+            for tg in t.tags:
+                tags[tg] = tags.get(tg, 0) + 1
+            ck_p = t.extra_frontmatter.get("creator_persona")
+            if isinstance(ck_p, str):
+                creators[ck_p] = creators.get(ck_p, 0) + 1
+            ak_p = t.extra_frontmatter.get("assignee_persona")
+            if isinstance(ak_p, str):
+                assignees[ak_p] = assignees.get(ak_p, 0) + 1
+            if t.milestone is not None:
+                m = str(t.milestone)
+                milestones[m] = milestones.get(m, 0) + 1
+
+        def _sorted_counts(d: dict[str, int]) -> list[dict[str, Any]]:
+            return [
+                {"value": k, "count": v}
+                for k, v in sorted(d.items(), key=lambda kv: (-kv[1], kv[0]))
+            ]
+
+        return {
+            "priorities": ["critical", "high", "medium", "low"],
+            "status_families": list(CANONICAL_STATUSES),
+            "raw_statuses": _sorted_counts(raw_status),
+            "ventures": _sorted_counts(ventures),
+            "tags": _sorted_counts(tags),
+            "creator_personas": _sorted_counts(creators),
+            "assignee_personas": _sorted_counts(assignees),
+            "milestones": _sorted_counts(milestones),
+            "namespace": NAMESPACE,
+        }
+
+    def search(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Free-text search across title + body + tags + venture + milestone.
+
+        Returns `{query, total, results: [{...summary, excerpt, score}, ...]}`.
+        Sorted by score (descending) where score = sum(weighted matches).
+
+        Server-side search runs over the corpus directly; the UI vendors
+        MiniSearch for the LIVE-typing case but falls back to this endpoint
+        on cold load + bulk filter.
+        """
+        q = _strip(params.get("q"))
+        limit = int(params.get("limit", 50) or 50)
+        if not q:
+            return {"query": "", "total": 0, "results": []}
+        q_lower = q.lower()
+        terms = [t for t in re.split(r"\s+", q_lower) if t]
+        # Field weights — title hits weighed heaviest, body matches lightest.
+        FIELD_WEIGHTS = {"title": 5, "tags": 3, "venture": 2, "milestone": 2, "body": 1}
+        scored: list[tuple[float, Task]] = []
+        for t in list_tasks(Stage.ACTIVE, self.root):
+            score = 0.0
+            for term in terms:
+                if term in t.title.lower():
+                    score += FIELD_WEIGHTS["title"]
+                if any(term in tg.lower() for tg in t.tags):
+                    score += FIELD_WEIGHTS["tags"]
+                if t.venture and term in t.venture.lower():
+                    score += FIELD_WEIGHTS["venture"]
+                if t.milestone and term in str(t.milestone).lower():
+                    score += FIELD_WEIGHTS["milestone"]
+                if term in t.body.lower():
+                    score += FIELD_WEIGHTS["body"]
+            if score > 0:
+                scored.append((score, t))
+        scored.sort(key=lambda pair: -pair[0])
+        results = []
+        for score, t in scored[:limit]:
+            summary = _summary(t)
+            summary["score"] = score
+            summary["excerpt"] = _make_excerpt(t.body, terms)
+            results.append(summary)
+        return {"query": q, "total": len(scored), "results": results}
 
     def feed(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         """Return tasks ordered by `created` desc — feeds claude-feed / portal.
@@ -310,6 +491,34 @@ def _count_checkboxes(body: str) -> tuple[int, int]:
     return checked, total
 
 
+def _make_excerpt(body: str, terms: list[str], *, radius: int = 60) -> str:
+    """Return a ~120-char excerpt centered on the first matched term.
+
+    Falls back to the first `radius * 2` chars when no term matches (e.g.
+    a phrase that survives across non-matching chunks of the body). UI
+    renders matched terms via its own buildExcerpt() pattern; the excerpt
+    here only chooses WHICH slice of the body to render.
+    """
+    if not body:
+        return ""
+    body_lower = body.lower()
+    earliest = -1
+    for term in terms:
+        idx = body_lower.find(term)
+        if idx != -1 and (earliest == -1 or idx < earliest):
+            earliest = idx
+    if earliest == -1:
+        return body[: radius * 2].strip()
+    start = max(0, earliest - radius)
+    end = min(len(body), earliest + radius * 2)
+    excerpt = body[start:end].strip()
+    if start > 0:
+        excerpt = "…" + excerpt
+    if end < len(body):
+        excerpt = excerpt + "…"
+    return excerpt
+
+
 def _summary(t: Task) -> dict[str, Any]:
     """Compact JSON shape for list view."""
     checked, total = _count_checkboxes(t.body)
@@ -317,6 +526,7 @@ def _summary(t: Task) -> dict[str, Any]:
         "id": t.id,
         "title": t.title,
         "status": t.status,
+        "status_family": _normalize_status(t.status),
         "priority": t.priority,
         "created": t.created.isoformat(),
         "tags": list(t.tags),

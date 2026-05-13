@@ -273,3 +273,159 @@ def test_live_hard_405_on_post(live_kernel: int) -> None:
 def test_live_unknown_path_404(live_kernel: int) -> None:
     status, _, body = _get(live_kernel, "/does-not-exist")
     assert status == 404
+
+
+# --- Extra-route endpoints (post-fleet-quality rebuild) --------------------
+
+
+def test_live_api_facets(live_kernel: int) -> None:
+    """/api/facets returns the full filter-chip taxonomy."""
+    status, _, body = _get(live_kernel, "/api/facets")
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["namespace"] == NAMESPACE
+    assert payload["priorities"] == ["critical", "high", "medium", "low"]
+    assert payload["status_families"] == [
+        "To Do", "In Progress", "Blocked", "Done", "Draft",
+    ]
+    assert isinstance(payload["raw_statuses"], list)
+    assert isinstance(payload["ventures"], list)
+    assert isinstance(payload["tags"], list)
+
+
+def test_live_api_search_query(live_kernel: int) -> None:
+    """/api/search runs weighted substring across title+tags+venture+body."""
+    status, _, body = _get(live_kernel, "/api/search?q=backlog&limit=5")
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["query"] == "backlog"
+    assert "total" in payload
+    assert isinstance(payload["results"], list)
+    if payload["results"]:
+        first = payload["results"][0]
+        assert "score" in first
+        assert "excerpt" in first
+        assert "id" in first
+        assert "title" in first
+
+
+def test_live_api_search_empty_query(live_kernel: int) -> None:
+    """Empty query returns the empty envelope, not an error."""
+    status, _, body = _get(live_kernel, "/api/search?q=")
+    assert status == 200
+    payload = json.loads(body)
+    assert payload == {"query": "", "total": 0, "results": []}
+
+
+def test_status_family_normalization() -> None:
+    """24 distinct raw statuses → 5 canonical families."""
+    from claude_backlog.web.accessor import _normalize_status, CANONICAL_STATUSES
+
+    assert _normalize_status("To Do") == "To Do"
+    assert _normalize_status("In Progress") == "In Progress"
+    assert _normalize_status("to do") == "To Do"
+    assert _normalize_status("TODO") == "To Do"
+    assert _normalize_status(" Backlog ") == "To Do"
+    assert _normalize_status("in-progress") == "In Progress"
+    assert _normalize_status("WIP") == "In Progress"
+    assert _normalize_status("done") == "Done"
+    assert _normalize_status("Cancelled") == "Done"
+    assert _normalize_status("superseded") == "Done"
+    assert _normalize_status("phase-2-shipped") == "Done"
+    assert _normalize_status("blocked") == "Blocked"
+    assert _normalize_status("waiting") == "Blocked"
+    assert _normalize_status("draft") == "Draft"
+    assert _normalize_status(None) == "To Do"
+    assert _normalize_status("") == "To Do"
+    assert _normalize_status("completely-novel-status") == "To Do"
+    assert CANONICAL_STATUSES == ("To Do", "In Progress", "Blocked", "Done", "Draft")
+
+
+def test_accessor_facets_shape() -> None:
+    """BacklogAccessor.facets returns documented keys + sorted-by-count rows."""
+    f = BacklogAccessor().facets()
+    for key in (
+        "priorities",
+        "status_families",
+        "raw_statuses",
+        "ventures",
+        "tags",
+        "creator_personas",
+        "assignee_personas",
+        "milestones",
+        "namespace",
+    ):
+        assert key in f, f"missing facets key {key!r}"
+    counts = [r["count"] for r in f["raw_statuses"]]
+    assert counts == sorted(counts, reverse=True)
+
+
+def test_accessor_search_weighted_scoring() -> None:
+    """Title hits should score >= body-only hits; scores monotonically descend."""
+    results = BacklogAccessor().search({"q": "webui", "limit": 10})
+    assert isinstance(results["results"], list)
+    if results["results"]:
+        scores = [r["score"] for r in results["results"]]
+        assert scores == sorted(scores, reverse=True)
+
+
+def test_list_status_family_filter() -> None:
+    """status_family=To Do should only return tasks normalizing to To Do."""
+    rows = BacklogAccessor().list({"status_family": "To Do", "limit": 1000})
+    for r in rows:
+        assert r["status_family"] == "To Do"
+
+
+def test_list_status_family_done_forces_include() -> None:
+    """status_family=Done auto-includes Done tasks (otherwise hidden by default)."""
+    rows = BacklogAccessor().list({"status_family": "Done", "limit": 1000})
+    for r in rows:
+        assert r["status_family"] == "Done"
+
+
+# --- Static UI assertions (post-fleet-quality rebuild) ---------------------
+
+
+def test_static_index_has_three_column_shell() -> None:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'id="left-nav"' in html
+    assert 'id="main-view"' in html
+    assert 'id="detail-panel"' in html
+    assert 'id="view-root"' in html
+
+
+def test_static_index_has_filter_chip_slot() -> None:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'id="filter-chips"' in html
+
+
+def test_static_index_loads_minisearch_vendor() -> None:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "/static/vendor/minisearch-" in html
+    assert (STATIC_DIR / "vendor").exists()
+    vendored = list((STATIC_DIR / "vendor").glob("minisearch-*.js"))
+    assert len(vendored) >= 1
+
+
+def test_static_index_uses_catppuccin_mocha_palette() -> None:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    for hex_code in ("#1e1e2e", "#cdd6f4", "#a6e3a1", "#cba6f7", "#89b4fa"):
+        assert hex_code in html
+
+
+def test_static_index_uses_doctrine_fonts() -> None:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "Press+Start+2P" in html
+    assert "JetBrains+Mono" in html
+    assert "font-pixel" in html
+    assert "font-mono" in html
+
+
+def test_static_index_has_5_kanban_columns() -> None:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "'To Do'" in html
+    assert "'In Progress'" in html
+    assert "'Blocked'" in html
+    assert "'Done'" in html
+    assert "'Draft'" in html
+    assert "KANBAN_COLUMNS" in html

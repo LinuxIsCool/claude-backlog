@@ -1,392 +1,878 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="dark bg-base">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>claude-backlog · web UI</title>
+  <title>claude-backlog · Trello-style task board</title>
 
   <!--
-    Phase 2 satellite of claude-webui (task-441).
-    POST-PIVOT (task-442 §0): kernel-webui doctrine compliant.
-    - Tailwind via CDN, palette baked from claude_webui.theme
-    - Press Start 2P + JetBrains Mono via Google Fonts
-    - Vanilla JS state object, async function api() helper
-    - DOMParser used everywhere instead of live-element inner-HTML to avoid XSS
-      and to satisfy the Legion security PreToolUse hook.
-    - One file. No build step. No npm.
+    Phase 2 satellite of claude-webui (task-441) — FLEET-QUALITY REBUILD.
+    Pattern source: claude-recordings/web/index.html + claude-youtube/web/index.html
+    Doctrine: kernel-webui v1 (~/.claude/plugins/local/legion-plugins/plugins/claude-webui/CLAUDE.md)
   -->
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/static/vendor/minisearch-7.2.0.js"></script>
   <script>
-    // Palette mirror of claude_webui.theme — keep in sync with Python source.
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
-            surface: { DEFAULT: '#0f0f17', card: '#161622', border: '#2a2a3e', raised: '#1e1e30' },
-            accent:  { green: '#a6e3a1', blue: '#89b4fa', red: '#f38ba8', yellow: '#f9e2af',
-                       purple: '#cba6f7', pink: '#f5c2e7', teal: '#94e2d5' },
+            rosewater: '#f5e0dc', flamingo: '#f2cdcd', pink: '#f5c2e7',
+            mauve: '#cba6f7', red: '#f38ba8', maroon: '#eba0ac',
+            peach: '#fab387', yellow: '#f9e2af', green: '#a6e3a1',
+            teal: '#94e2d5', sky: '#89dceb', sapphire: '#74c7ec',
+            blue: '#89b4fa', lavender: '#b4befe',
+            text: '#cdd6f4', subtext1: '#bac2de', subtext0: '#a6adc8',
+            overlay2: '#9399b2', overlay1: '#7f849c', overlay0: '#6c7086',
+            surface2: '#585b70', surface1: '#45475a', surface0: '#313244',
+            base: '#1e1e2e', mantle: '#181825', crust: '#11111b',
           },
           fontFamily: {
-            display: ['"Press Start 2P"', 'cursive'],
-            mono:    ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+            mono:  ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+            pixel: ['"Press Start 2P"', 'monospace'],
           },
-          animation: { 'fade-in': 'fade-in 0.2s ease-out' },
+          animation: {
+            'fade-in':  'fade-in 0.2s ease-out',
+            'pulse-mauve': 'pulse-mauve 1.8s ease-in-out infinite',
+          },
           keyframes: {
             'fade-in': {
-              '0%':   { opacity: '0', transform: 'translateY(2px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)'   },
+              from: { opacity: 0, transform: 'translateY(3px)' },
+              to:   { opacity: 1, transform: 'translateY(0)'   },
+            },
+            'pulse-mauve': {
+              '0%,100%': { opacity: 1   },
+              '50%':     { opacity: 0.35 },
             },
           },
-        },
-      },
+        }
+      }
     };
   </script>
 
   <style>
-    body { font-family: theme('fontFamily.mono'); }
-    .display { font-family: theme('fontFamily.display'); }
+    *::-webkit-scrollbar        { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track  { background: #181825; }
+    *::-webkit-scrollbar-thumb  { background: #45475a; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb:hover { background: #585b70; }
 
-    .badge      { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-[0.65rem] font-display uppercase tracking-wider; }
-    .badge-pri-critical { @apply bg-accent-red/20 text-accent-red border border-accent-red/40; }
-    .badge-pri-high     { @apply bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/40; }
-    .badge-pri-medium   { @apply bg-accent-blue/15 text-accent-blue border border-accent-blue/40; }
-    .badge-pri-low      { @apply bg-surface-border text-gray-500 border border-surface-border; }
+    .clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+    .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-    .nav-tab    { @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs hover:bg-surface-raised border border-transparent; }
-    .nav-tab-active { @apply bg-surface-raised border-surface-border text-accent-blue; }
+    .card { transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease; }
+    .card:hover { transform: translateY(-2px); border-color: #cba6f766; background: #1e1e30; }
+    .card.selected { border-color: #a6e3a1aa; background: #a6e3a108; }
 
-    .ui-card    { @apply rounded-lg bg-surface-card border border-surface-border p-4 animate-fade-in; }
-    .ui-row     { @apply flex items-center gap-3 py-2 border-b border-surface-border last:border-0; }
+    .chip { transition: all 0.15s ease; }
+    .chip:hover { border-color: #89b4fa66; color: #89b4fa; }
+    .chip.active { border-color: #a6e3a166; background: #a6e3a111; color: #a6e3a1; }
 
-    .bar        { @apply h-1.5 rounded-full bg-surface-border overflow-hidden; }
-    .bar-fill   { @apply h-full bg-accent-green; }
+    .nav-tab { transition: all 0.15s ease; }
+    .nav-tab:hover { background: #1e1e30; border-color: #89b4fa44; color: #89b4fa; }
+    .nav-tab.active { background: #a6e3a111; border-color: #a6e3a166; color: #a6e3a1; }
 
-    .clamp-2    { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .clamp-1    { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+    .badge { display: inline-flex; align-items: center; padding: 1px 6px;
+             border: 1px solid; border-radius: 4px;
+             font-family: "JetBrains Mono", monospace; font-size: 0.65rem;
+             text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-todo        { border-color: #bac2de55; color: #bac2de; background: #bac2de11; }
+    .badge-inprogress  { border-color: #89b4fa55; color: #89b4fa; background: #89b4fa11; }
+    .badge-blocked     { border-color: #f38ba855; color: #f38ba8; background: #f38ba811; }
+    .badge-done        { border-color: #a6e3a155; color: #a6e3a1; background: #a6e3a111; }
+    .badge-draft       { border-color: #f9e2af55; color: #f9e2af; background: #f9e2af11; }
 
-    .spinner    { @apply inline-block w-3 h-3 rounded-full border-2 border-surface-border border-t-accent-blue animate-spin; }
+    .pri-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+    .pri-dot-critical { background: #f38ba8; box-shadow: 0 0 6px #f38ba8aa; }
+    .pri-dot-high     { background: #fab387; }
+    .pri-dot-medium   { background: #89b4fa; }
+    .pri-dot-low      { background: #7f849c; }
+
+    .progress-track { height: 4px; background: #313244; border-radius: 2px; overflow: hidden; }
+    .progress-fill  { height: 100%; background: #a6e3a1; transition: width 0.3s ease; }
+
+    .tag-chip { display: inline-flex; align-items: center; padding: 1px 5px;
+                background: #313244; color: #bac2de; border-radius: 3px;
+                font-size: 0.6rem; font-family: "JetBrains Mono", monospace; }
+
+    mark { background: #f9e2af33; color: #f9e2af; border-radius: 3px; padding: 0 2px; }
+
+    .spinner { display: inline-block; width: 0.85rem; height: 0.85rem;
+               border: 2px solid #45475a; border-top-color: #a6e3a1;
+               border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .live-on { animation: pulse-mauve 1.8s ease-in-out infinite; }
+
+    .scrim-open #left-nav { transform: translateX(0); }
+    @media (max-width: 1024px) {
+      #left-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 280px;
+                  transform: translateX(-100%); transition: transform 0.2s ease;
+                  z-index: 50; background: #181825; }
+      #detail-panel { display: none; }
+    }
   </style>
-  <link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="%230f0f17"/><text x="50%25" y="62%25" text-anchor="middle" font-size="20" fill="%2389b4fa">▦</text></svg>'>
+
+  <link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="%231e1e2e"/><text x="50%25" y="62%25" text-anchor="middle" font-size="20" fill="%23cba6f7" font-family="monospace">%E2%96%A6</text></svg>'>
 </head>
 
-<body class="bg-surface text-gray-200 min-h-screen flex flex-col">
+<body class="font-mono text-text bg-base min-h-screen">
 
-  <header id="app-header" class="border-b border-surface-border bg-surface-card">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
-      <div class="flex items-baseline gap-2">
-        <span class="text-accent-blue text-lg">▦</span>
-        <span class="display text-[0.7rem] tracking-widest">CLAUDE-BACKLOG</span>
-        <span class="text-[0.65rem] text-gray-500 font-mono" id="version-badge">v…</span>
-      </div>
-      <nav id="tab-nav" class="flex flex-wrap gap-1 ml-auto" aria-label="views"></nav>
-      <input
-        type="search"
-        id="search"
-        placeholder="search title + body  (press /)"
-        class="ml-auto bg-surface-raised border border-surface-border rounded px-3 py-1 text-xs w-64 focus:border-accent-blue focus:outline-none placeholder:text-gray-600"
-      />
+  <div id="mobile-scrim" class="hidden fixed inset-0 bg-black/60 z-40 lg:hidden" data-action="close-sidebar"></div>
+
+  <header id="app-header" class="border-b border-surface0 bg-mantle sticky top-0 z-30">
+    <div class="max-w-[1800px] mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
+      <button id="sidebar-toggle" class="lg:hidden text-subtext0 hover:text-text" data-action="open-sidebar">☰</button>
+      <h1 class="font-pixel text-mauve text-sm shrink-0">claude-backlog</h1>
+      <div id="search-slot" class="flex-1 min-w-[280px]"></div>
+      <div id="live-toggle-slot" class="shrink-0"></div>
+      <div id="healthz-slot" class="text-xs text-subtext0 shrink-0"></div>
+    </div>
+
+    <div class="max-w-[1800px] mx-auto px-4 pb-3">
+      <div id="filter-chips" class="flex flex-wrap gap-2 items-center text-xs"></div>
     </div>
   </header>
 
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-    <section id="view-host" class="space-y-4"></section>
+  <main class="max-w-[1800px] mx-auto px-4 py-4 grid grid-cols-12 gap-4">
+
+    <aside id="left-nav" class="col-span-2 min-w-0">
+      <div class="sticky top-[120px] space-y-3">
+        <nav id="view-nav" class="rounded-lg border border-surface0 bg-mantle p-1.5 space-y-0.5"></nav>
+        <div id="left-stats" class="rounded-lg border border-surface0 bg-mantle p-3 text-xs space-y-1"></div>
+        <div id="left-ventures" class="rounded-lg border border-surface0 bg-mantle p-3 text-xs"></div>
+      </div>
+    </aside>
+
+    <section id="main-view" class="col-span-7 min-w-0">
+      <div id="view-root" class="animate-fade-in"></div>
+    </section>
+
+    <aside id="detail-panel" class="col-span-3 min-w-0">
+      <div class="sticky top-[120px]">
+        <div id="detail-slot" class="rounded-lg border border-surface0 bg-mantle p-4 text-sm text-subtext0">
+          No task selected.
+        </div>
+      </div>
+    </aside>
+
   </main>
 
-  <footer id="app-footer" class="border-t border-surface-border bg-surface-card mt-auto">
-    <div class="max-w-7xl mx-auto px-4 py-2 flex items-center gap-4 text-[0.7rem] text-gray-500 font-mono">
-      <span id="namespace-badge">legion.claude-backlog</span>
-      <span class="ml-auto" id="status-line">ready.</span>
+  <footer id="app-footer" class="border-t border-surface0 bg-mantle mt-auto">
+    <div class="max-w-[1800px] mx-auto px-4 py-2 text-[0.7rem] text-overlay0 font-mono flex items-center gap-3">
+      <span id="footer-namespace">legion.claude-backlog</span>
+      <span class="ml-auto" id="footer-status">ready.</span>
     </div>
   </footer>
 
-  <script>
-    "use strict";
+<script>
+"use strict";
 
-    /* ───────────── state ───────────── */
-    const state = {
-      route: "/",
-      tasks: [],
-      filters: { q: "", priority: "", status: "" },
-      kernel: { kernel_protocol: "?", satellite_version: "?", namespace: "?" },
-      embedded: new URLSearchParams(location.search).get("embedded") === "1",
+/* ─── STATE ──────────────────────────────────────────────────────────── */
+const initialParams = new URLSearchParams(location.search);
+
+window.BacklogApp = {
+  version: '0.2.0',
+  state: {
+    view:          (initialParams.get('view')          || 'kanban'),
+    selected_id:   (initialParams.get('task')          || null),
+    q:             (initialParams.get('q')             || ''),
+    status_family: (initialParams.get('status_family') || ''),
+    priority:      (initialParams.get('priority')      || ''),
+    venture:       (initialParams.get('venture')       || ''),
+    tag:           (initialParams.get('tag')           || ''),
+    creator_persona:  initialParams.get('creator_persona')  || '',
+    assignee_persona: initialParams.get('assignee_persona') || '',
+    include_done:  initialParams.get('include_done') === '1',
+    live:          (localStorage.getItem('legion.backlog.live')   === '1'),
+    tasks:         [],
+    facets:        null,
+    stats:         null,
+    health:        null,
+    embedded:      initialParams.get('embedded') === '1',
+  },
+};
+const state = window.BacklogApp.state;
+
+const VIEWS = [
+  { key: 'kanban', label: 'Kanban' },
+  { key: 'list',   label: 'List'   },
+  { key: 'stats',  label: 'Stats'  },
+  { key: 'about',  label: 'About'  },
+];
+
+const KANBAN_COLUMNS = ['To Do', 'In Progress', 'Blocked', 'Done', 'Draft'];
+
+const STATUS_BADGE = {
+  'To Do':       'badge-todo',
+  'In Progress': 'badge-inprogress',
+  'Blocked':     'badge-blocked',
+  'Done':        'badge-done',
+  'Draft':       'badge-draft',
+};
+const PRIORITY_DOT = {
+  'critical': 'pri-dot-critical',
+  'high':     'pri-dot-high',
+  'medium':   'pri-dot-medium',
+  'low':      'pri-dot-low',
+};
+
+/* ─── el() SAFE DOM BUILDER ─────────────────────────────────────────── */
+function el(tag, attrs, ...children) {
+  const node = document.createElement(tag);
+  if (attrs) {
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === 'class') node.className = v;
+      else if (k === 'dataset') {
+        for (const [dk, dv] of Object.entries(v)) if (dv != null) node.dataset[dk] = String(dv);
+      } else if (k.startsWith('data-')) node.setAttribute(k, v);
+      else if (k.startsWith('on') && typeof v === 'function') {
+        node.addEventListener(k.slice(2).toLowerCase(), v);
+      } else if (k === 'style' && typeof v === 'object') Object.assign(node.style, v);
+      else if (typeof v === 'boolean') { if (v) node.setAttribute(k, ''); }
+      else node.setAttribute(k, v);
+    }
+  }
+  for (const c of children.flat(Infinity)) {
+    if (c == null || c === false) continue;
+    if (c instanceof Node) node.appendChild(c);
+    else node.appendChild(document.createTextNode(String(c)));
+  }
+  return node;
+}
+function clear(n) { if (!n) return; while (n.firstChild) n.removeChild(n.firstChild); }
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+/* ─── api() JSON fetch ─────────────────────────────────────────────── */
+async function api(path, params = null) {
+  let url = path;
+  if (params) {
+    const u = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v == null || v === '') continue;
+      u.set(k, String(v));
+    }
+    const qs = u.toString();
+    if (qs) url += (path.includes('?') ? '&' : '?') + qs;
+  }
+  const t0 = performance.now();
+  const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+  const ms = (performance.now() - t0).toFixed(0);
+  setStatus(`${path} → ${resp.status} (${ms}ms)`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+  return resp.json();
+}
+function setStatus(msg) { $('#footer-status').textContent = msg; }
+
+/* ─── Time helpers ──────────────────────────────────────────────────── */
+function relativeTime(iso) {
+  if (!iso) return '';
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const d = (Date.now() - t) / 1000;
+  if (d < 60)         return `${Math.floor(d)}s ago`;
+  if (d < 3600)       return `${Math.floor(d/60)}m ago`;
+  if (d < 86400)      return `${Math.floor(d/3600)}h ago`;
+  if (d < 86400*7)    return `${Math.floor(d/86400)}d ago`;
+  if (d < 86400*30)   return `${Math.floor(d/86400/7)}w ago`;
+  if (d < 86400*365)  return `${Math.floor(d/86400/30)}mo ago`;
+  return `${Math.floor(d/86400/365)}y ago`;
+}
+
+/* ─── Search-term highlight (matchAll, no live-element inner-HTML) ──── */
+function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function termsFromQuery(q) {
+  if (!q) return [];
+  return String(q).split(/\s+/).map(t => t.replace(/^["']|["']$/g, '')).filter(Boolean);
+}
+function buildExcerpt(text, query) {
+  if (!text) return [];
+  if (!query) return [document.createTextNode(text)];
+  const terms = termsFromQuery(query);
+  if (terms.length === 0) return [document.createTextNode(text)];
+  const re = new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'gi');
+  const matches = Array.from(text.matchAll(re));
+  if (matches.length === 0) return [document.createTextNode(text)];
+  const out = []; let last = 0;
+  for (const m of matches) {
+    if (m.index > last) out.push(document.createTextNode(text.slice(last, m.index)));
+    out.push(el('mark', null, m[0]));
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(document.createTextNode(text.slice(last)));
+  return out;
+}
+
+/* ─── URL state ─────────────────────────────────────────────────────── */
+function pushUrlState() {
+  const p = new URLSearchParams();
+  if (state.view !== 'kanban')   p.set('view', state.view);
+  if (state.selected_id)         p.set('task', state.selected_id);
+  if (state.q)                   p.set('q', state.q);
+  if (state.status_family)       p.set('status_family', state.status_family);
+  if (state.priority)            p.set('priority', state.priority);
+  if (state.venture)             p.set('venture', state.venture);
+  if (state.tag)                 p.set('tag', state.tag);
+  if (state.creator_persona)     p.set('creator_persona', state.creator_persona);
+  if (state.assignee_persona)    p.set('assignee_persona', state.assignee_persona);
+  if (state.include_done)        p.set('include_done', '1');
+  if (state.embedded)            p.set('embedded', '1');
+  const qs = p.toString();
+  const target = qs ? `?${qs}` : location.pathname;
+  history.replaceState({}, '', target);
+}
+
+/* ─── Loaders ───────────────────────────────────────────────────────── */
+async function loadFacets() { state.facets = await api('/api/facets'); return state.facets; }
+async function loadStats()  { state.stats  = await api('/api/stats');  return state.stats; }
+async function loadHealth() { state.health = await api('/healthz');    return state.health; }
+async function loadTasks() {
+  const params = {
+    limit: 1000,
+    status_family:    state.status_family || undefined,
+    priority:         state.priority || undefined,
+    venture:          state.venture || undefined,
+    tag:              state.tag || undefined,
+    creator_persona:  state.creator_persona || undefined,
+    assignee_persona: state.assignee_persona || undefined,
+    include_done:     state.status_family === 'Done' ? '1' : (state.include_done ? '1' : undefined),
+    q:                state.q || undefined,
+  };
+  state.tasks = await api('/api/list', params);
+  return state.tasks;
+}
+async function loadDetail(id) { if (!id) return null; return api(`/api/detail/${encodeURIComponent(id)}`); }
+
+/* ─── Search input ──────────────────────────────────────────────────── */
+function renderSearchInput() {
+  const slot = $('#search-slot');
+  clear(slot);
+  const ph = state.stats ? `Search ${state.stats.active_total} active tasks  (press /)` : 'Search';
+  const input = el('input', {
+    type: 'search', id: 'search-input', placeholder: ph, value: state.q,
+    class: 'w-full bg-surface0 border border-surface1 rounded px-3 py-1.5 text-sm '
+         + 'text-text placeholder:text-overlay0 focus:outline-none focus:border-mauve',
+  });
+  let timer = null;
+  input.addEventListener('input', (e) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      state.q = e.target.value;
+      pushUrlState();
+      renderView();
+    }, 200);
+  });
+  slot.appendChild(input);
+}
+
+/* ─── Live-poll toggle ──────────────────────────────────────────────── */
+function renderLiveToggle() {
+  const slot = $('#live-toggle-slot');
+  clear(slot);
+  const btn = el('button', {
+    class: 'border border-surface0 rounded px-2 py-1 text-xs ' + (state.live ? 'live-on text-mauve' : 'text-overlay0'),
+    title: state.live ? 'live polling on — click to disable' : 'live polling off — click to enable',
+    onclick: () => {
+      state.live = !state.live;
+      localStorage.setItem('legion.backlog.live', state.live ? '1' : '0');
+      renderLiveToggle();
+      schedulePoll();
+    },
+  }, '● LIVE');
+  slot.appendChild(btn);
+}
+
+/* ─── Health badge ──────────────────────────────────────────────────── */
+function renderHealth() {
+  const slot = $('#healthz-slot');
+  clear(slot);
+  if (!state.health) { slot.appendChild(el('span', null, '…')); return; }
+  const ok = state.health.ok;
+  const dot = el('span', { class: 'inline-block w-2 h-2 rounded-full mr-1 ' + (ok ? 'bg-green' : 'bg-red') });
+  slot.appendChild(el('span', { class: 'inline-flex items-center' },
+    dot,
+    el('span', null, ok ? 'healthy' : 'unhealthy'),
+    el('span', { class: 'ml-2 text-overlay0' }, `${state.health.elapsed_ms}ms`),
+  ));
+}
+
+/* ─── Filter chips ──────────────────────────────────────────────────── */
+const FILTER_DEFS = [
+  { key: 'priority',         label: 'Priority', options: () => state.facets ? state.facets.priorities : [] },
+  { key: 'status_family',    label: 'Status',   options: () => state.facets ? state.facets.status_families : [] },
+  { key: 'venture',          label: 'Venture',  options: () => state.facets ? state.facets.ventures.slice(0,10).map(o=>o.value) : [] },
+  { key: 'tag',              label: 'Tag',      options: () => state.facets ? state.facets.tags.slice(0,20).map(o=>o.value) : [] },
+  { key: 'creator_persona',  label: 'Creator',  options: () => state.facets ? state.facets.creator_personas.map(o=>o.value)  : [], skipWhenEmpty: true },
+  { key: 'assignee_persona', label: 'Assignee', options: () => state.facets ? state.facets.assignee_personas.map(o=>o.value) : [], skipWhenEmpty: true },
+];
+
+let _openChipMenu = null;
+function toggleChipMenu(anchor, def, opts) {
+  if (_openChipMenu) { _openChipMenu.remove(); _openChipMenu = null; }
+  const menu = el('div', {
+    class: 'absolute z-40 mt-1 left-0 rounded border border-surface0 bg-mantle shadow-2xl '
+         + 'min-w-[180px] max-h-[280px] overflow-y-auto p-1',
+  });
+  const choose = (v) => {
+    state[def.key] = (state[def.key] === v) ? '' : v;
+    pushUrlState();
+    if (_openChipMenu) { _openChipMenu.remove(); _openChipMenu = null; }
+    renderView();
+  };
+  menu.appendChild(el('button', {
+    class: 'block w-full text-left px-2 py-1 text-xs hover:bg-surface0 rounded ' + (state[def.key] ? '' : 'text-green'),
+    onclick: () => choose(''),
+  }, 'all'));
+  for (const opt of opts) {
+    const sel = state[def.key] === opt;
+    menu.appendChild(el('button', {
+      class: 'block w-full text-left px-2 py-1 text-xs hover:bg-surface0 rounded ' + (sel ? 'text-green' : 'text-subtext1'),
+      onclick: () => choose(opt),
+    }, opt));
+  }
+  anchor.parentElement.appendChild(menu);
+  _openChipMenu = menu;
+  setTimeout(() => {
+    const closer = (e) => {
+      if (!menu.contains(e.target) && e.target !== anchor) {
+        menu.remove(); _openChipMenu = null;
+        document.removeEventListener('click', closer);
+      }
     };
+    document.addEventListener('click', closer);
+  }, 0);
+}
 
-    const TABS = [
-      { path: "/",        label: "Kanban",  glyph: "▦" },
-      { path: "/list",    label: "List",    glyph: "≡" },
-      { path: "/stats",   label: "Stats",   glyph: "▤" },
-      { path: "/graph",   label: "Network", glyph: "◇" },
-      { path: "/embed",   label: "Embed",   glyph: "✦" },
-      { path: "/heatmap", label: "Heatmap", glyph: "▩" },
-      { path: "/compass", label: "Compass", glyph: "◉" },
-    ];
+function renderFilterChips() {
+  const slot = $('#filter-chips');
+  clear(slot);
+  for (const def of FILTER_DEFS) {
+    const opts = def.options();
+    if (def.skipWhenEmpty && opts.length === 0) continue;
+    const active = state[def.key];
+    const chip = el('div', { class: 'relative inline-block' },
+      el('button', {
+        class: 'chip border rounded px-2 py-1 ' + (active ? 'active' : 'border-surface0 text-subtext0'),
+        onclick: (e) => toggleChipMenu(e.currentTarget, def, opts),
+      }, `${def.label}: ${active || 'all'}`, el('span', { class: 'ml-1 text-overlay0' }, '▾')),
+    );
+    slot.appendChild(chip);
+  }
+  const incDone = el('button', {
+    class: 'chip border rounded px-2 py-1 ' + (state.include_done ? 'active' : 'border-surface0 text-subtext0'),
+    onclick: () => {
+      state.include_done = !state.include_done;
+      pushUrlState();
+      renderView();
+    },
+  }, state.include_done ? '☑ include done' : '☐ include done');
+  slot.appendChild(incDone);
+  const anyActive = ['priority','status_family','venture','tag','creator_persona','assignee_persona'].some(k => state[k]);
+  if (anyActive || state.q) {
+    slot.appendChild(el('button', {
+      class: 'chip border border-red/40 text-red rounded px-2 py-1',
+      onclick: () => {
+        state.priority = state.status_family = state.venture = state.tag = '';
+        state.creator_persona = state.assignee_persona = '';
+        state.q = '';
+        const inp = $('#search-input'); if (inp) inp.value = '';
+        pushUrlState();
+        renderView();
+      },
+    }, '✕ clear'));
+  }
+}
 
-    /* ───────────── safe DOM construction ─────────────
-       NEVER assign to a live element's inner-HTML — per Legion security hook + XSS doctrine.
-       parseHTML uses DOMParser (parse-only, no JS execution); render(host, str)
-       replaces the host's children with the parsed nodes.
-    */
-    function escapeHtml(s) {
-      return String(s ?? "").replace(/[&<>"']/g, c => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-      }[c]));
-    }
-    function parseHTML(str) {
-      // Wrap in <div> so parseFromString preserves nested whitespace + comments.
-      const doc = new DOMParser().parseFromString(`<div>${str}</div>`, "text/html");
-      return Array.from(doc.body.firstChild.childNodes);
-    }
-    function render(host, str) {
-      host.replaceChildren(...parseHTML(str));
-    }
+/* ─── Left nav (view tabs + stats + ventures) ──────────────────────── */
+function renderLeftNav() {
+  const nav = $('#view-nav');
+  clear(nav);
+  for (const v of VIEWS) {
+    const tab = el('button', {
+      class: 'nav-tab w-full text-left rounded px-2 py-2 text-xs border border-transparent ' + (state.view === v.key ? 'active' : 'text-subtext1'),
+      onclick: () => { state.view = v.key; pushUrlState(); renderView(); },
+    }, v.label);
+    nav.appendChild(tab);
+  }
 
-    /* ───────────── chrome (embed-mode suppression) ───────────── */
-    if (state.embedded) {
-      document.getElementById("app-header").style.display = "none";
-      document.getElementById("app-footer").style.display = "none";
-    }
+  const ls = $('#left-stats');
+  clear(ls);
+  if (state.stats) {
+    const cb = state.stats.checkbox_progress || { checked: 0, total: 0, ratio: 0 };
+    const pct = (cb.ratio * 100).toFixed(1);
+    ls.appendChild(el('div', { class: 'font-pixel text-[0.55rem] text-mauve mb-2 tracking-wider' }, 'CORPUS'));
+    ls.appendChild(el('div', { class: 'flex items-baseline gap-2' },
+      el('span', null, 'active'),
+      el('span', { class: 'ml-auto font-mono text-text' }, String(state.stats.active_total)),
+    ));
+    ls.appendChild(el('div', { class: 'flex items-baseline gap-2' },
+      el('span', null, 'drafts'),
+      el('span', { class: 'ml-auto font-mono text-text' }, String(state.stats.drafts_total)),
+    ));
+    ls.appendChild(el('div', { class: 'flex items-baseline gap-2' },
+      el('span', null, 'checkboxes'),
+      el('span', { class: 'ml-auto font-mono text-text' }, `${cb.checked}/${cb.total}`),
+    ));
+    ls.appendChild(el('div', { class: 'progress-track mt-1' }, el('div', { class: 'progress-fill', style: { width: `${pct}%` } })));
+    ls.appendChild(el('div', { class: 'text-overlay0 text-[0.65rem] mt-0.5' }, `${pct}%`));
+  }
 
-    /* ───────────── api helper ───────────── */
-    async function api(path, params) {
-      const u = new URL(path, location.origin);
-      if (params) for (const [k, v] of Object.entries(params)) {
-        if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, v);
+  const lv = $('#left-ventures');
+  clear(lv);
+  if (state.facets) {
+    lv.appendChild(el('div', { class: 'font-pixel text-[0.55rem] text-mauve mb-2 tracking-wider' }, 'VENTURES'));
+    for (const v of state.facets.ventures.slice(0, 10)) {
+      const active = state.venture === v.value;
+      lv.appendChild(el('button', {
+        class: 'flex w-full items-baseline gap-2 hover:bg-surface0 rounded px-1 py-0.5 ' + (active ? 'text-green' : 'text-subtext1'),
+        onclick: () => { state.venture = active ? '' : v.value; pushUrlState(); renderView(); },
+      },
+        el('span', { class: 'clamp-1' }, v.value),
+        el('span', { class: 'ml-auto font-mono text-overlay0' }, String(v.count)),
+      ));
+    }
+  }
+}
+
+/* ─── Task card ─────────────────────────────────────────────────────── */
+function renderTaskCard(t) {
+  const pct = t.checkbox_total ? Math.round(100 * t.checkbox_checked / t.checkbox_total) : null;
+  return el('div', {
+    class: 'card border border-surface0 rounded p-2.5 bg-mantle cursor-pointer ' + (state.selected_id == String(t.id) ? 'selected' : ''),
+    dataset: { taskId: t.id },
+    onclick: () => selectTask(t.id),
+  },
+    el('div', { class: 'flex items-baseline gap-2 mb-1' },
+      el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}`, title: `priority: ${t.priority}` }),
+      el('span', { class: 'text-[0.6rem] text-overlay0 font-mono' }, `#${t.id}`),
+      t.parent_task ? el('span', { class: 'text-[0.6rem] text-overlay0', title: `subtask of #${t.parent_task}` }, `↳ ${t.parent_task}`) : null,
+      el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(t.created)),
+    ),
+    el('div', { class: 'text-xs text-text clamp-2 mb-1.5 leading-snug' },
+      ...buildExcerpt(t.title, state.q),
+    ),
+    t.tags && t.tags.length
+      ? el('div', { class: 'flex flex-wrap gap-1 mb-1.5' },
+          ...t.tags.slice(0, 4).map(tag => el('span', {
+            class: 'tag-chip cursor-pointer hover:text-green',
+            onclick: (e) => { e.stopPropagation(); state.tag = state.tag === tag ? '' : tag; pushUrlState(); renderView(); },
+          }, tag)),
+          t.tags.length > 4 ? el('span', { class: 'tag-chip text-overlay0' }, `+${t.tags.length - 4}`) : null,
+        )
+      : null,
+    (pct !== null)
+      ? el('div', null,
+          el('div', { class: 'progress-track' }, el('div', { class: 'progress-fill', style: { width: `${pct}%` } })),
+          el('div', { class: 'text-[0.6rem] text-overlay0 mt-0.5' }, `${t.checkbox_checked}/${t.checkbox_total} · ${pct}%`),
+        )
+      : null,
+    t.venture
+      ? el('div', { class: 'text-[0.6rem] text-overlay0 mt-1 clamp-1' }, t.venture)
+      : null,
+  );
+}
+
+/* ─── Kanban view ───────────────────────────────────────────────────── */
+function renderKanban() {
+  const root = $('#view-root');
+  clear(root);
+  const cols = KANBAN_COLUMNS.filter(c => c !== 'Draft' || (state.stats && state.stats.drafts_total > 0));
+  const wrapper = el('div', { class: 'grid gap-3', style: { gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` } });
+
+  const groups = Object.fromEntries(cols.map(c => [c, []]));
+  for (const t of state.tasks) {
+    const fam = t.status_family || 'To Do';
+    if (groups[fam]) groups[fam].push(t);
+  }
+
+  for (const c of cols) {
+    const list = groups[c];
+    wrapper.appendChild(el('div', { class: 'rounded-lg border border-surface0 bg-crust/40' },
+      el('div', { class: 'sticky top-0 bg-mantle/95 border-b border-surface0 px-3 py-2 flex items-baseline gap-2 rounded-t-lg z-10' },
+        el('span', { class: `badge ${STATUS_BADGE[c]}` }, c),
+        el('span', { class: 'text-[0.65rem] text-overlay0 ml-auto font-mono' }, String(list.length)),
+        list.length > 7 && c === 'In Progress'
+          ? el('span', { class: 'text-[0.6rem] text-yellow ml-1', title: 'WIP > 7 — consider tightening' }, '⚠')
+          : null,
+      ),
+      el('div', { class: 'p-2 space-y-2 min-h-[60px]' },
+        list.length
+          ? list.map(renderTaskCard)
+          : el('div', { class: 'text-[0.7rem] text-overlay0 text-center py-4' }, c === 'Done' ? '— quiet —' : '— empty —'),
+      ),
+    ));
+  }
+  root.appendChild(wrapper);
+}
+
+/* ─── List view ─────────────────────────────────────────────────────── */
+function renderList() {
+  const root = $('#view-root');
+  clear(root);
+  const card = el('div', { class: 'rounded-lg border border-surface0 bg-mantle overflow-x-auto' });
+  const tbl = el('table', { class: 'w-full text-xs' });
+  const thead = el('thead', null,
+    el('tr', { class: 'text-left text-overlay1 border-b border-surface0' },
+      ...['id', 'title', 'status', 'pri', 'progress', 'tags', 'venture', 'age'].map(h =>
+        el('th', { class: 'px-2 py-2 font-medium' }, h),
+      ),
+    ),
+  );
+  const tbody = el('tbody');
+  for (const t of state.tasks) {
+    const row = el('tr', {
+      class: 'border-b border-surface0/50 hover:bg-surface0/30 cursor-pointer ' + (state.selected_id == String(t.id) ? 'bg-green/5' : ''),
+      onclick: () => selectTask(t.id),
+    },
+      el('td', { class: 'px-2 py-1 text-overlay0 font-mono' }, `#${t.id}`),
+      el('td', { class: 'px-2 py-1 clamp-1' }, ...buildExcerpt(t.title, state.q)),
+      el('td', { class: 'px-2 py-1' }, el('span', { class: `badge ${STATUS_BADGE[t.status_family]}` }, t.status_family)),
+      el('td', { class: 'px-2 py-1' }, el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority]}` }), el('span', { class: 'ml-1 text-overlay1' }, t.priority)),
+      el('td', { class: 'px-2 py-1 text-overlay1 font-mono' }, t.checkbox_total ? `${t.checkbox_checked}/${t.checkbox_total}` : '—'),
+      el('td', { class: 'px-2 py-1 text-overlay1' }, (t.tags || []).slice(0, 3).join(', ')),
+      el('td', { class: 'px-2 py-1 text-overlay1 clamp-1' }, t.venture || ''),
+      el('td', { class: 'px-2 py-1 text-overlay0 font-mono' }, relativeTime(t.created)),
+    );
+    tbody.appendChild(row);
+  }
+  tbl.appendChild(thead); tbl.appendChild(tbody); card.appendChild(tbl);
+  root.appendChild(card);
+}
+
+/* ─── Stats view ────────────────────────────────────────────────────── */
+function renderStats() {
+  const root = $('#view-root');
+  clear(root);
+  const s = state.stats; const f = state.facets;
+  if (!s || !f) { root.appendChild(el('div', { class: 'spinner' })); return; }
+
+  const renderCounts = (entries, title) => {
+    const card = el('div', { class: 'rounded-lg border border-surface0 bg-mantle p-4' },
+      el('div', { class: 'font-pixel text-[0.6rem] text-mauve mb-3 tracking-wider' }, title),
+    );
+    const max = entries.length ? (entries[0].count !== undefined ? entries[0].count : entries[0][1]) : 1;
+    for (const e of entries) {
+      const value = e.value !== undefined ? e.value : e[0];
+      const count = e.count !== undefined ? e.count : e[1];
+      const pct = (count / max * 100).toFixed(0);
+      card.appendChild(el('div', { class: 'flex items-baseline gap-2 py-1 border-b border-surface0/40 last:border-0' },
+        el('span', { class: 'text-xs clamp-1' }, value),
+        el('span', { class: 'ml-auto text-xs text-overlay1 font-mono' }, String(count)),
+        el('div', { class: 'w-12 progress-track ml-2' }, el('div', { class: 'progress-fill', style: { width: `${pct}%`, background: '#89b4fa' } })),
+      ));
+    }
+    return card;
+  };
+
+  const fam = Object.entries(s.by_status_family).map(([k, v]) => ({ value: k, count: v })).sort((a, b) => b.count - a.count);
+  const pri = Object.entries(s.by_priority).map(([k, v]) => ({ value: k, count: v })).sort((a, b) => b.count - a.count);
+  const rawSt = f.raw_statuses.slice(0, 12);
+  const ventTop = f.ventures.slice(0, 8);
+
+  const grid = el('div', { class: 'grid grid-cols-1 md:grid-cols-2 gap-4' });
+  const cb = s.checkbox_progress; const pct = (cb.ratio * 100).toFixed(1);
+  grid.appendChild(el('div', { class: 'rounded-lg border border-surface0 bg-mantle p-4' },
+    el('div', { class: 'font-pixel text-[0.6rem] text-mauve mb-3 tracking-wider' }, 'SUMMARY'),
+    el('div', { class: 'flex justify-between text-sm py-1' },
+      el('span', null, 'active'), el('span', { class: 'font-mono text-text' }, String(s.active_total))),
+    el('div', { class: 'flex justify-between text-sm py-1' },
+      el('span', null, 'drafts'), el('span', { class: 'font-mono text-text' }, String(s.drafts_total))),
+    el('div', { class: 'flex justify-between text-sm py-1' },
+      el('span', null, 'distinct raw statuses'), el('span', { class: 'font-mono text-text' }, String(f.raw_statuses.length))),
+    el('div', { class: 'flex justify-between text-sm py-1' },
+      el('span', null, 'distinct ventures'), el('span', { class: 'font-mono text-text' }, String(f.ventures.length))),
+    el('div', { class: 'flex justify-between text-sm py-1' },
+      el('span', null, 'distinct tags'), el('span', { class: 'font-mono text-text' }, String(f.tags.length))),
+    el('div', { class: 'flex justify-between text-sm py-1' },
+      el('span', null, 'checkbox progress'), el('span', { class: 'font-mono text-text' }, `${cb.checked}/${cb.total} · ${pct}%`)),
+    el('div', { class: 'progress-track mt-2' }, el('div', { class: 'progress-fill', style: { width: `${pct}%` } })),
+  ));
+  grid.appendChild(renderCounts(fam, 'BY STATUS FAMILY'));
+  grid.appendChild(renderCounts(pri, 'BY PRIORITY'));
+  grid.appendChild(renderCounts(rawSt, 'RAW STATUS STRINGS (top 12)'));
+  grid.appendChild(renderCounts(ventTop, 'TOP VENTURES'));
+  root.appendChild(grid);
+}
+
+/* ─── About view ────────────────────────────────────────────────────── */
+function renderAbout() {
+  const root = $('#view-root');
+  clear(root);
+  const card = el('div', { class: 'rounded-lg border border-surface0 bg-mantle p-6 max-w-3xl' });
+  card.appendChild(el('div', { class: 'font-pixel text-mauve text-sm mb-4 tracking-wider' }, 'CLAUDE-BACKLOG WEB UI'));
+  card.appendChild(el('div', { class: 'space-y-3 text-sm text-subtext1' },
+    el('p', null, 'Trello-style task board for the claude-backlog corpus. First satellite of the claude-webui Surfacing-cluster shell (task-441 Phase 2).'),
+    el('p', null, 'Reads from ~/.claude/local/backlog/task-*.md and ~/.claude/local/backlog/drafts/. ', el('strong', null, 'Read-only.'), ' Mutations live in the claude-backlog MCP server.'),
+    el('p', null, 'Status families collapse 24+ raw status strings into 5 canonical columns (To Do / In Progress / Blocked / Done / Draft). The raw string is preserved per task — see /stats for the full distribution.'),
+    el('p', null, 'Search uses server-side weighted substring across title (5x), tags (3x), venture/milestone (2x), body (1x). Matched terms highlight as ', el('mark', null, 'yellow chips'), ' in the title.'),
+    el('p', null, 'URL state is durable — every filter chip + selection writes to ?query string. Bookmark any view to return to it later.'),
+  ));
+  card.appendChild(el('hr', { class: 'my-4 border-surface0' }));
+  card.appendChild(el('div', { class: 'text-xs text-overlay1 space-y-1 font-mono' },
+    el('div', null, 'kernel:    claude_webui.WebuiKernel'),
+    el('div', null, 'namespace: legion.claude-backlog'),
+    el('div', null, 'version:   0.2.0 (post-pivot)'),
+    el('div', null, 'endpoints: /healthz · /api/list · /api/detail/<id> · /api/stats · /api/feed · /api/facets · /api/search'),
+  ));
+  card.appendChild(el('div', { class: 'mt-4 text-xs text-overlay1 space-y-1' },
+    el('div', null, el('strong', null, 'Keyboard:'), '  / focus search · 1-4 switch view · Esc clear selection'),
+  ));
+  root.appendChild(card);
+}
+
+/* ─── Detail panel ──────────────────────────────────────────────────── */
+async function renderDetail() {
+  const slot = $('#detail-slot');
+  clear(slot);
+  if (!state.selected_id) { slot.appendChild(el('span', null, 'No task selected. Click a card.')); return; }
+  slot.appendChild(el('div', { class: 'flex items-center text-overlay0 text-xs' }, el('span', { class: 'spinner mr-2' }), `loading #${state.selected_id}…`));
+  let t;
+  try { t = await loadDetail(state.selected_id); }
+  catch (e) { clear(slot); slot.appendChild(el('div', { class: 'text-red text-sm' }, `error: ${e.message}`)); return; }
+  if (!t || t.error) {
+    clear(slot);
+    slot.appendChild(el('div', { class: 'text-red text-sm' }, t && t.error ? `${t.error}` : 'not found'));
+    return;
+  }
+  clear(slot);
+  const pct = t.checkbox_total ? Math.round(100 * t.checkbox_checked / t.checkbox_total) : null;
+  slot.appendChild(el('div', { class: 'flex items-baseline gap-2 mb-2' },
+    el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}` }),
+    el('span', { class: 'text-[0.7rem] text-overlay0 font-mono' }, `#${t.id}`),
+    el('span', { class: `badge ${STATUS_BADGE[t.status_family]} ml-1` }, t.status_family),
+    el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(t.created)),
+  ));
+  slot.appendChild(el('h3', { class: 'text-sm font-medium text-text mb-2 leading-snug' }, ...buildExcerpt(t.title, state.q)));
+  if (t.tags && t.tags.length) {
+    slot.appendChild(el('div', { class: 'flex flex-wrap gap-1 mb-2' },
+      ...t.tags.map(tag => el('span', { class: 'tag-chip' }, tag)),
+    ));
+  }
+  if (pct !== null) {
+    slot.appendChild(el('div', { class: 'mb-2' },
+      el('div', { class: 'progress-track' }, el('div', { class: 'progress-fill', style: { width: `${pct}%` } })),
+      el('div', { class: 'text-[0.65rem] text-overlay0 mt-0.5' }, `${t.checkbox_checked}/${t.checkbox_total} · ${pct}%`),
+    ));
+  }
+  const meta = el('div', { class: 'text-[0.7rem] text-overlay1 space-y-1 mb-3' });
+  if (t.venture)         meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'venture · '),     t.venture));
+  if (t.milestone)       meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'milestone · '),   String(t.milestone)));
+  if (t.due)             meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'due · '),         t.due));
+  if (t.effort)          meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'effort · '),      t.effort));
+  if (t.estimated_hours) meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'estimate · '),    `${t.estimated_hours}h`));
+  if (t.creator_persona) meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'creator · '),     t.creator_persona));
+  if (t.assignee_persona)meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'assignee · '),    t.assignee_persona));
+  if ((t.depends_on || []).length) meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'depends · '), (t.depends_on || []).map(String).join(', ')));
+  if ((t.blocks     || []).length) meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'blocks · '),  (t.blocks     || []).map(String).join(', ')));
+  if (t.parent_task)     meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'parent · '),      `#${t.parent_task}`));
+  slot.appendChild(meta);
+  slot.appendChild(el('div', {
+    class: 'text-[0.7rem] text-subtext1 whitespace-pre-wrap leading-relaxed border-t border-surface0 pt-3 max-h-[500px] overflow-y-auto',
+  }, ...buildExcerpt(t.body || '', state.q)));
+  if (t.path) slot.appendChild(el('div', { class: 'text-[0.6rem] text-overlay0 mt-3 font-mono break-all' }, t.path));
+}
+
+function selectTask(id) {
+  state.selected_id = String(id);
+  pushUrlState();
+  $$('.card.selected, tr.bg-green\\/5').forEach(node => node.classList.remove('selected', 'bg-green/5'));
+  const target = $(`.card[data-task-id="${id}"]`); if (target) target.classList.add('selected');
+  renderDetail();
+}
+
+/* ─── Live polling ──────────────────────────────────────────────────── */
+let _pollTimer = null;
+const POLL_INTERVAL_MS = 8000;
+function schedulePoll() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  if (!state.live) return;
+  _pollTimer = setInterval(async () => {
+    try {
+      await Promise.all([loadHealth(), loadStats(), loadFacets()]);
+      if (state.view === 'kanban' || state.view === 'list' || state.view === 'stats') {
+        await loadTasks();
       }
-      const t0 = performance.now();
-      const r = await fetch(u, { headers: { "Accept-Encoding": "gzip" } });
-      const ms = (performance.now() - t0).toFixed(0);
-      setStatus(`${path} → ${r.status} (${ms}ms)`);
-      if (!r.ok) throw new Error(`${path} → ${r.status}`);
-      return r.json();
+      renderHealth(); renderLeftNav(); renderView();
+    } catch (e) {
+      setStatus(`poll error: ${e.message}`);
     }
-    function setStatus(msg) { document.getElementById("status-line").textContent = msg; }
+  }, POLL_INTERVAL_MS);
+}
 
-    /* ───────────── routing ───────────── */
-    function routeFromUrl() {
-      const path = location.pathname.replace(/\/+$/, "") || "/";
-      return path;
+/* ─── View dispatch ─────────────────────────────────────────────────── */
+async function renderView() {
+  renderSearchInput();
+  renderFilterChips();
+  renderLeftNav();
+  if (state.view === 'kanban' || state.view === 'list') {
+    $('#view-root').replaceChildren(el('div', { class: 'flex items-center gap-2 text-overlay0 text-xs p-4' },
+      el('span', { class: 'spinner' }), 'loading tasks…'));
+    try { await loadTasks(); } catch (e) {
+      $('#view-root').replaceChildren(el('div', { class: 'rounded-lg border border-red/40 bg-mantle p-4 text-red text-sm' }, e.message));
+      return;
     }
-    function navigate(path) {
-      if (path === state.route) return;
-      history.pushState({}, "", path + location.search);
-      state.route = path;
-      renderRoute();
+  }
+  if (state.view === 'kanban') renderKanban();
+  else if (state.view === 'list') renderList();
+  else if (state.view === 'stats') renderStats();
+  else if (state.view === 'about') renderAbout();
+  if (state.selected_id) renderDetail();
+}
+
+/* ─── Sidebar toggle (mobile) ───────────────────────────────────────── */
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (!(t instanceof Element)) return;
+  const action = t.closest('[data-action]')?.dataset?.action;
+  if (action === 'open-sidebar')  { document.body.classList.add('scrim-open');  $('#mobile-scrim').classList.remove('hidden'); }
+  if (action === 'close-sidebar') { document.body.classList.remove('scrim-open');$('#mobile-scrim').classList.add('hidden'); }
+});
+
+/* ─── Keyboard shortcuts ────────────────────────────────────────────── */
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    $('#search-input')?.focus();
+  } else if (e.key === 'Escape') {
+    if (state.selected_id) {
+      state.selected_id = null;
+      pushUrlState();
+      $('#detail-slot').replaceChildren(el('span', null, 'No task selected.'));
     }
-    window.addEventListener("popstate", () => {
-      state.route = routeFromUrl();
-      renderRoute();
-    });
+  } else if (e.key >= '1' && e.key <= '4' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    const idx = parseInt(e.key, 10) - 1;
+    if (VIEWS[idx]) { state.view = VIEWS[idx].key; pushUrlState(); renderView(); }
+  }
+});
 
-    /* ───────────── nav ───────────── */
-    function renderTabs() {
-      const nav = document.getElementById("tab-nav");
-      const parts = TABS.map(t =>
-        `<a href="${t.path}" data-nav-path="${t.path}" class="nav-tab${state.route === t.path ? ' nav-tab-active' : ''}">
-           <span aria-hidden="true">${t.glyph}</span><span>${t.label}</span>
-         </a>`
-      ).join("");
-      render(nav, parts);
-      for (const el of nav.querySelectorAll("[data-nav-path]")) {
-        el.addEventListener("click", (e) => { e.preventDefault(); navigate(el.dataset.navPath); });
-      }
-    }
+/* ─── Embed-mode (Phase 4) ──────────────────────────────────────────── */
+if (state.embedded) {
+  $('#app-header').style.display = 'none';
+  $('#app-footer').style.display = 'none';
+}
 
-    /* ───────────── renderers ───────────── */
-    function taskCard(t) {
-      const pri = `badge-pri-${t.priority}`;
-      const pct = t.checkbox_total ? Math.round(100 * t.checkbox_checked / t.checkbox_total) : null;
-      return `
-        <div data-task-id="${t.id}"
-             class="rounded border border-surface-border bg-surface-raised hover:border-accent-blue p-2 cursor-pointer transition-colors">
-          <div class="flex items-baseline gap-2 mb-1">
-            <span class="text-[0.6rem] text-gray-500 font-mono">#${t.id}</span>
-            <span class="badge ${pri}">${escapeHtml(t.priority)}</span>
-          </div>
-          <div class="text-xs clamp-2 mb-2">${escapeHtml(t.title)}</div>
-          ${pct !== null
-            ? `<div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-               <div class="text-[0.6rem] text-gray-500 mt-1">${t.checkbox_checked}/${t.checkbox_total} · ${pct}%</div>`
-            : ""}
-        </div>`;
-    }
-
-    async function renderKanban() {
-      const host = document.getElementById("view-host");
-      render(host, `<div class="ui-card"><span class="spinner mr-2"></span>loading tasks…</div>`);
-      const tasks = await api("/api/list", { limit: 500 });
-      state.tasks = tasks;
-      const cols = ["To Do", "In Progress", "Blocked", "Done"];
-      const byStatus = Object.fromEntries(cols.map((c) => [c, []]));
-      for (const t of tasks) {
-        const k = cols.includes(t.status) ? t.status : "To Do";
-        byStatus[k].push(t);
-      }
-      const grid = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        ${cols.map(c => `
-          <div class="ui-card">
-            <div class="flex items-baseline justify-between mb-3">
-              <span class="display text-[0.65rem] tracking-wider text-accent-blue">${escapeHtml(c)}</span>
-              <span class="text-[0.65rem] text-gray-500">${byStatus[c].length}</span>
-            </div>
-            <div class="space-y-2">${byStatus[c].map(taskCard).join("")}</div>
-          </div>`).join("")}
-      </div>`;
-      render(host, grid);
-      for (const el of host.querySelectorAll("[data-task-id]")) {
-        el.addEventListener("click", () => navigate(`/task/${el.dataset.taskId}`));
-      }
-    }
-
-    async function renderList() {
-      const host = document.getElementById("view-host");
-      render(host, `<div class="ui-card"><span class="spinner mr-2"></span>loading list…</div>`);
-      const tasks = await api("/api/list", { limit: 1000, q: state.filters.q });
-      const html = `
-        <div class="ui-card overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="text-left text-gray-500 border-b border-surface-border">
-                <th class="px-2 py-2">id</th><th class="px-2">title</th>
-                <th class="px-2">status</th><th class="px-2">pri</th>
-                <th class="px-2">progress</th><th class="px-2">venture</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tasks.map(t => `
-                <tr class="border-b border-surface-border hover:bg-surface-raised cursor-pointer" data-task-id="${t.id}">
-                  <td class="px-2 py-1 text-gray-500 font-mono">#${t.id}</td>
-                  <td class="px-2 clamp-1">${escapeHtml(t.title)}</td>
-                  <td class="px-2">${escapeHtml(t.status)}</td>
-                  <td class="px-2"><span class="badge badge-pri-${t.priority}">${escapeHtml(t.priority)}</span></td>
-                  <td class="px-2">${t.checkbox_total ? `${t.checkbox_checked}/${t.checkbox_total}` : "—"}</td>
-                  <td class="px-2 text-gray-500">${escapeHtml(t.venture || "")}</td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
-        </div>`;
-      render(host, html);
-      for (const el of host.querySelectorAll("[data-task-id]")) {
-        el.addEventListener("click", () => navigate(`/task/${el.dataset.taskId}`));
-      }
-    }
-
-    async function renderDetail() {
-      const host = document.getElementById("view-host");
-      const id = state.route.split("/").pop();
-      render(host, `<div class="ui-card"><span class="spinner mr-2"></span>loading task #${escapeHtml(id)}…</div>`);
-      const t = await api(`/api/detail/${id}`);
-      if (t.error) {
-        render(host, `<div class="ui-card border border-accent-red"><strong>${escapeHtml(t.error)}</strong><br>${escapeHtml(t.detail || "")}</div>`);
-        return;
-      }
-      const html = `
-        <div class="ui-card">
-          <div class="flex items-baseline gap-3 mb-3">
-            <span class="text-gray-500 font-mono text-xs">#${t.id}</span>
-            <span class="badge badge-pri-${t.priority}">${escapeHtml(t.priority)}</span>
-            <span class="text-xs text-gray-400">${escapeHtml(t.status)}</span>
-            <span class="ml-auto text-[0.65rem] text-gray-500">${escapeHtml(t.path || "")}</span>
-          </div>
-          <h2 class="text-lg font-medium mb-3">${escapeHtml(t.title)}</h2>
-          <div class="text-xs text-gray-400 mb-4">
-            tags: ${(t.tags || []).map(x => `<span class="badge">${escapeHtml(x)}</span>`).join(" ") || "—"}
-            · venture: ${escapeHtml(t.venture || "—")}
-            · milestone: ${escapeHtml(t.milestone || "—")}
-            · created: ${escapeHtml(t.created)}
-          </div>
-          <pre class="whitespace-pre-wrap bg-surface-raised border border-surface-border rounded p-3 text-xs leading-relaxed">${escapeHtml(t.body || "")}</pre>
-        </div>`;
-      render(host, html);
-    }
-
-    async function renderStats() {
-      const host = document.getElementById("view-host");
-      render(host, `<div class="ui-card"><span class="spinner mr-2"></span>computing stats…</div>`);
-      const s = await api("/api/stats");
-      const renderCounts = (obj) => Object.entries(obj || {}).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
-        `<div class="ui-row"><span class="clamp-1">${escapeHtml(k)}</span><span class="ml-auto text-gray-400 font-mono">${v}</span></div>`
-      ).join("");
-      const cb = s.checkbox_progress || {};
-      const pct = cb.total ? Math.round(100 * cb.checked / cb.total) : 0;
-      const html = `
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div class="ui-card">
-            <h3 class="display text-[0.65rem] text-accent-blue tracking-wider mb-3">SUMMARY</h3>
-            <div class="ui-row"><span>active total</span><span class="ml-auto font-mono">${s.active_total}</span></div>
-            <div class="ui-row"><span>drafts total</span><span class="ml-auto font-mono">${s.drafts_total}</span></div>
-            <div class="ui-row"><span>checkbox progress</span><span class="ml-auto font-mono">${cb.checked}/${cb.total} · ${pct}%</span></div>
-            <div class="bar mt-2"><div class="bar-fill" style="width:${pct}%"></div></div>
-          </div>
-          <div class="ui-card"><h3 class="display text-[0.65rem] text-accent-blue tracking-wider mb-3">BY STATUS</h3>${renderCounts(s.by_status)}</div>
-          <div class="ui-card"><h3 class="display text-[0.65rem] text-accent-blue tracking-wider mb-3">BY PRIORITY</h3>${renderCounts(s.by_priority)}</div>
-          <div class="ui-card lg:col-span-2"><h3 class="display text-[0.65rem] text-accent-blue tracking-wider mb-3">BY VENTURE</h3>${renderCounts(s.by_venture)}</div>
-          <div class="ui-card"><h3 class="display text-[0.65rem] text-accent-blue tracking-wider mb-3">PERSONA · CREATOR</h3>${renderCounts(s.by_creator_persona) || '<span class="text-gray-500 text-xs">no persona overlay yet</span>'}</div>
-        </div>`;
-      render(host, html);
-    }
-
-    function renderPlaceholder(label, nextPhase) {
-      const host = document.getElementById("view-host");
-      const html = `
-        <div class="ui-card text-center text-gray-400">
-          <h3 class="display text-[0.7rem] text-accent-blue tracking-widest mb-2">${escapeHtml(label)}</h3>
-          <p class="text-xs">populates in ${escapeHtml(nextPhase)}</p>
-        </div>`;
-      render(host, html);
-    }
-
-    /* ───────────── dispatcher ───────────── */
-    async function renderRoute() {
-      renderTabs();
-      try {
-        const r = state.route;
-        if (r === "/")              return await renderKanban();
-        if (r === "/list")          return await renderList();
-        if (r === "/stats")         return await renderStats();
-        if (r.startsWith("/task/")) return await renderDetail();
-        if (r === "/graph")         return renderPlaceholder("DEPENDENCY NETWORK", "Phase 5.5b");
-        if (r === "/embed")         return renderPlaceholder("EMBED 2D",          "Phase 5.5b");
-        if (r === "/heatmap")       return renderPlaceholder("HEATMAP",           "Phase 5.5b");
-        if (r === "/compass")       return renderPlaceholder("COMPASS",           "Phase 5.5b");
-        renderPlaceholder("UNKNOWN", "—");
-      } catch (e) {
-        console.error(e);
-        const host = document.getElementById("view-host");
-        render(host, `<div class="ui-card border border-accent-red"><strong>error:</strong> ${escapeHtml(e.message || String(e))}</div>`);
-      }
-    }
-
-    /* ───────────── keyboard ───────────── */
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "/" && document.activeElement.tagName !== "INPUT") {
-        e.preventDefault();
-        document.getElementById("search").focus();
-      }
-    });
-    document.getElementById("search").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        state.filters.q = e.target.value;
-        if (state.route !== "/list") navigate("/list");
-        else renderList();
-      }
-    });
-
-    /* ───────────── init ───────────── */
-    (async function init() {
-      state.route = routeFromUrl();
-      try {
-        const v = await api("/healthz");
-        document.getElementById("namespace-badge").textContent = v.namespace || "?";
-        document.getElementById("version-badge").textContent = v.active_count != null
-          ? `${v.active_count} active`
-          : "ok";
-      } catch (e) { /* surface in status line */ }
-      renderRoute();
-    })();
-  </script>
+/* ─── Init ──────────────────────────────────────────────────────────── */
+(async function init() {
+  $('#footer-namespace').textContent = 'legion.claude-backlog';
+  try {
+    await Promise.all([loadHealth(), loadStats(), loadFacets()]);
+  } catch (e) {
+    setStatus(`init error: ${e.message}`);
+  }
+  renderHealth();
+  renderLiveToggle();
+  schedulePoll();
+  await renderView();
+  if (state.selected_id) await renderDetail();
+})();
+</script>
 </body>
 </html>
