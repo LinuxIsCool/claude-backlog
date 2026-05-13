@@ -5,7 +5,7 @@ contract documented in plugin CLAUDE.md + AGENTS.md so hooks, MCP server,
 and any future Python entry point share a single implementation.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from claude_backlog.errors import BacklogToolError, ErrorCode
 from claude_backlog.io import (
@@ -16,6 +16,8 @@ from claude_backlog.io import (
     mv_task,
     next_id,
     parse_frontmatter,
+    peek_next_id,
+    reserve_id,
     scan_ids,
     slugify,
     write_task,
@@ -35,6 +37,8 @@ __all__ = [
     "mv_task",
     "next_id",
     "parse_frontmatter",
+    "peek_next_id",
+    "reserve_id",
     "scan_ids",
     "slugify",
     "write_task",

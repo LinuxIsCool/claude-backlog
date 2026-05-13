@@ -10,6 +10,7 @@ no logging, no env writes, no daemon state. Pure file ↔ Task transformations.
 
 from __future__ import annotations
 
+import fcntl
 import os
 import re
 import unicodedata
@@ -317,10 +318,98 @@ def scan_ids(root: Path | None = None) -> set[int]:
     return out
 
 
+_COUNTER_FILE = ".next_id_counter"
+_LOCK_FILE = ".next_id.lock"
+
+
+def _counter_path(root: Path) -> Path:
+    return root / _COUNTER_FILE
+
+
+def _lock_path(root: Path) -> Path:
+    return root / _LOCK_FILE
+
+
+def _read_counter(root: Path) -> int:
+    """Read the persisted counter. Returns 0 if missing or unparseable."""
+    p = _counter_path(root)
+    try:
+        return int(p.read_text().strip())
+    except (FileNotFoundError, ValueError, OSError):
+        return 0
+
+
+def _write_counter(root: Path, value: int) -> None:
+    """Atomic counter write via tmp file + rename. Survives crashes."""
+    p = _counter_path(root)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(str(value))
+    os.replace(tmp, p)
+
+
+def peek_next_id(root: Path | None = None) -> int:
+    """Read-only preview of what the next reserved ID would be.
+
+    Useful for dry-runs / informational displays. Does NOT reserve.
+    Two callers racing on peek_next_id() WILL see the same value —
+    use reserve_id() (or next_id()) for actual allocation.
+    """
+    r = root or BACKLOG_ROOT
+    if not r.exists():
+        return 1
+    counter = _read_counter(r)
+    scan = scan_ids(r)
+    scan_max = max(scan) if scan else 0
+    return max(counter, scan_max) + 1
+
+
+def reserve_id(root: Path | None = None) -> int:
+    """Atomically reserve a fresh task ID under fcntl.flock(LOCK_EX).
+
+    Concurrent-safe: no two callers (across threads OR processes) can
+    return the same ID. The reserved value is the larger of the persisted
+    counter and `max(scan_ids()) + 1`, so manually-added task files are
+    reconciled on every call.
+
+    Lock + counter files live at `<root>/.next_id.lock` and
+    `<root>/.next_id_counter`. The lock file is created on first use.
+
+    Fixes the race condition documented in task-447: prior versions did
+    `max(scan_ids()) + 1` without a lock, producing 37 ID collisions in
+    the live corpus from concurrent multi-agent activity.
+    """
+    r = root or BACKLOG_ROOT
+    r.mkdir(parents=True, exist_ok=True)
+    lock_path = _lock_path(r)
+    # Open lock file in append mode (creates if missing). The open file
+    # description carries the flock; threads opening separately each get
+    # their own description and serialize correctly via the kernel.
+    with open(lock_path, "a+") as lock_fh:
+        fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+        try:
+            counter = _read_counter(r)
+            scan = scan_ids(r)
+            scan_max = max(scan) if scan else 0
+            reserved = max(counter, scan_max) + 1
+            _write_counter(r, reserved)
+            return reserved
+        finally:
+            fcntl.flock(lock_fh.fileno(), fcntl.LOCK_UN)
+
+
 def next_id(root: Path | None = None) -> int:
-    """Return the next free integer ID (`max(scan_ids()) + 1`)."""
-    ids = scan_ids(root)
-    return (max(ids) + 1) if ids else 1
+    """Atomically reserve the next integer task ID. Concurrent-safe.
+
+    Behavior change (task-447, 2026-05-12): this function now reserves
+    under fcntl.flock and persists a counter file. Previous versions did
+    `max(scan_ids()) + 1` without a lock, allowing two concurrent agents
+    to return the same ID. All call sites that invoke next_id() to claim
+    an ID for a new task become safe automatically.
+
+    For read-only "what would be next" inspection without reserving, use
+    peek_next_id().
+    """
+    return reserve_id(root)
 
 
 def find_task(

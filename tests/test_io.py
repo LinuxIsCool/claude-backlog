@@ -16,7 +16,9 @@ from claude_backlog.io import (
     mv_task,
     next_id,
     parse_frontmatter,
+    peek_next_id,
     read_task,
+    reserve_id,
     save_config,
     scan_ids,
     slugify,
@@ -112,6 +114,172 @@ def test_next_id_with_gaps(tmp_backlog: Path) -> None:
     (tmp_backlog / "task-1 - a.md").write_text("---\nid: 1\ntitle: a\n---\n")
     (tmp_backlog / "task-5 - e.md").write_text("---\nid: 5\ntitle: e\n---\n")
     assert next_id(root=tmp_backlog) == 6
+
+
+# --- task-447: atomic reserve_id + counter file -----------------------------
+
+
+def test_next_id_is_atomic_alias_for_reserve_id(tmp_backlog: Path) -> None:
+    """next_id() and reserve_id() are functionally identical post-task-447.
+
+    Both atomically allocate a fresh ID under flock. Each call must
+    return a strictly larger value than the previous one.
+    """
+    a = next_id(root=tmp_backlog)
+    b = reserve_id(root=tmp_backlog)
+    c = next_id(root=tmp_backlog)
+    assert a == 1
+    assert b == 2
+    assert c == 3
+
+
+def test_reserve_id_persists_counter_file(tmp_backlog: Path) -> None:
+    """After reservation, .next_id_counter holds the reserved value.
+
+    Survives across process boundaries — a subsequent reserve_id() in a
+    fresh process would read this counter and increment from there.
+    """
+    reserve_id(root=tmp_backlog)
+    reserve_id(root=tmp_backlog)
+    reserved = reserve_id(root=tmp_backlog)
+    counter_file = tmp_backlog / ".next_id_counter"
+    assert counter_file.exists()
+    assert counter_file.read_text().strip() == str(reserved)
+
+
+def test_reserve_id_reconciles_manual_additions(tmp_backlog: Path) -> None:
+    """If someone adds task-NNN.md without going through reserve_id,
+    the next reservation jumps past their highest manual ID.
+
+    Reconciliation against scan_ids() is checked on EVERY call so manual
+    additions can never produce a collision with the counter.
+    """
+    (tmp_backlog / "task-1 - a.md").write_text("---\nid: 1\ntitle: a\n---\n")
+    (tmp_backlog / "task-500 - manual.md").write_text(
+        "---\nid: 500\ntitle: manual\n---\n",
+    )
+    # Counter file does NOT exist yet → only scan_ids contributes.
+    assert reserve_id(root=tmp_backlog) == 501
+    # Now counter is 501. Add another manual file at 600 — reconciliation kicks in.
+    (tmp_backlog / "task-600 - manual2.md").write_text(
+        "---\nid: 600\ntitle: manual2\n---\n",
+    )
+    assert reserve_id(root=tmp_backlog) == 601
+
+
+def test_peek_next_id_does_not_reserve(tmp_backlog: Path) -> None:
+    """peek_next_id is read-only — two peeks return the same value,
+    and the persisted counter is unchanged."""
+    (tmp_backlog / "task-10 - x.md").write_text("---\nid: 10\ntitle: x\n---\n")
+    a = peek_next_id(root=tmp_backlog)
+    b = peek_next_id(root=tmp_backlog)
+    assert a == b == 11
+    # Counter file should not have been created by peek calls.
+    counter_file = tmp_backlog / ".next_id_counter"
+    assert not counter_file.exists()
+
+
+def test_reserve_id_no_collisions_under_thread_concurrency(
+    tmp_backlog: Path,
+) -> None:
+    """100 threads × 10 reservations each → 1000 distinct IDs.
+
+    Validates fcntl.flock(LOCK_EX) on per-call file descriptors serializes
+    concurrent reservations correctly. This is the core regression test
+    for the 37-collision live-corpus bug (task-447).
+    """
+    import concurrent.futures
+
+    NUM_THREADS = 100
+    PER_THREAD = 10
+
+    def worker() -> list[int]:
+        return [reserve_id(root=tmp_backlog) for _ in range(PER_THREAD)]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=NUM_THREADS) as ex:
+        results = list(ex.map(lambda _: worker(), range(NUM_THREADS)))
+
+    all_ids: list[int] = []
+    for r in results:
+        all_ids.extend(r)
+
+    expected_total = NUM_THREADS * PER_THREAD
+    assert len(all_ids) == expected_total
+    assert len(set(all_ids)) == expected_total, (
+        f"COLLISION: {expected_total - len(set(all_ids))} duplicate IDs "
+        f"under {NUM_THREADS}-thread × {PER_THREAD}-reservation stress."
+    )
+    # IDs should be the contiguous range 1..expected_total.
+    assert min(all_ids) == 1
+    assert max(all_ids) == expected_total
+
+
+def test_reserve_id_no_collisions_under_process_concurrency(
+    tmp_backlog: Path,
+) -> None:
+    """Multi-process belt-and-suspenders. fork() 10 children × 10 reservations.
+
+    flock semantics differ subtly between threads (per-FD locks within one
+    process) and processes (kernel-level inter-process locks). This test
+    verifies process-level correctness directly — the real production
+    scenario (multiple Claude agents) is multi-process.
+    """
+    import multiprocessing
+
+    NUM_PROCS = 10
+    PER_PROC = 10
+
+    def worker(root_str: str, q: multiprocessing.Queue) -> None:
+        from pathlib import Path as P
+
+        from claude_backlog.io import reserve_id as ri
+
+        ids = [ri(root=P(root_str)) for _ in range(PER_PROC)]
+        q.put(ids)
+
+    ctx = multiprocessing.get_context("fork")
+    q: multiprocessing.Queue = ctx.Queue()
+    procs = [
+        ctx.Process(target=worker, args=(str(tmp_backlog), q))
+        for _ in range(NUM_PROCS)
+    ]
+    for p in procs:
+        p.start()
+    for p in procs:
+        p.join(timeout=30)
+        assert p.exitcode == 0, f"worker exited {p.exitcode}"
+
+    all_ids: list[int] = []
+    while not q.empty():
+        all_ids.extend(q.get())
+
+    expected_total = NUM_PROCS * PER_PROC
+    assert len(all_ids) == expected_total
+    assert len(set(all_ids)) == expected_total, (
+        f"PROCESS COLLISION: {expected_total - len(set(all_ids))} duplicates "
+        f"across {NUM_PROCS} fork()ed workers."
+    )
+
+
+def test_counter_file_drift_below_scan_ids_self_heals(tmp_backlog: Path) -> None:
+    """If the counter file drifts BELOW max(scan_ids), the next reserve_id
+    call reconciles upward. Protects against manual counter editing or
+    corrupted state — scan_ids is always authoritative when higher."""
+    counter_file = tmp_backlog / ".next_id_counter"
+    counter_file.write_text("3")  # artificially low
+    (tmp_backlog / "task-100 - h.md").write_text("---\nid: 100\ntitle: h\n---\n")
+    # Counter says 3, but scan says 100. Next reservation must beat both.
+    assert reserve_id(root=tmp_backlog) == 101
+    assert counter_file.read_text().strip() == "101"
+
+
+def test_counter_file_corrupt_payload_treated_as_zero(tmp_backlog: Path) -> None:
+    """Garbled counter file (e.g., partial write from crash) → treated as 0;
+    scan_ids reconciliation prevents data loss."""
+    counter_file = tmp_backlog / ".next_id_counter"
+    counter_file.write_text("not-a-number\n\x00")
+    (tmp_backlog / "task-50 - k.md").write_text("---\nid: 50\ntitle: k\n---\n")
+    assert reserve_id(root=tmp_backlog) == 51
 
 
 # --- find_task --------------------------------------------------------------
