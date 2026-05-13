@@ -700,6 +700,47 @@ def test_build_kernel_wires_signature_fn_and_watch_paths(tmp_backlog) -> None:
     assert isinstance(kernel._watcher, (InotifyWatcher, SignaturePoller))
 
 
+def test_static_index_has_drag_and_drop_kanban() -> None:
+    """task-446 Phase B3: kanban cards become draggable + columns accept
+    drops, dispatching set_status mutations via /api/mutate.
+
+    Pins:
+      - draggable: true on the task card
+      - ondragstart sets dataTransfer with the task id
+      - column body declares a data-drop-target with the canonical status
+      - drop handler calls handleKanbanDrop()
+      - postMutation() helper exists and POSTs to /api/mutate
+      - X-Persona-Slug header set on the request
+    """
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # Card-level
+    assert "draggable: true" in html
+    assert "ondragstart:" in html
+    # Column-level
+    assert "dropTarget:" in html
+    assert "ondrop:" in html
+    assert "handleKanbanDrop(" in html
+    # Helper
+    assert "async function postMutation(" in html
+    assert "fetch('/api/mutate'" in html
+    assert "X-Persona-Slug" in html
+    # Idempotency
+    assert "idempotency_key" in html
+
+
+def test_static_index_has_click_cycle_priority() -> None:
+    """task-446 Phase B3: clicking the priority dot cycles through
+    critical → high → medium → low. The handler dispatches
+    set_priority via /api/mutate with optimistic update + toast on error."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "function cyclePriority(" in html
+    assert "set_priority" in html
+    # Canonical cycle order pinned in code.
+    assert "['critical', 'high', 'medium', 'low']" in html
+    # Toast helper exists for rollback feedback.
+    assert "function showToast(" in html
+
+
 def test_static_index_age_uses_modified_at_when_available() -> None:
     """v0.2.5: age column / card timestamp uses task.modified_at (file
     mtime, ISO 8601 from server) when present, falling back to task.created

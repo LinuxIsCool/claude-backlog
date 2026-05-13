@@ -21,11 +21,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from claude_webui import WebuiKernel
+from claude_webui import MutationCatalog, WebuiKernel
 from claude_webui.kernel import WebuiHandler
 
 from claude_backlog import __version__ as _BACKLOG_VERSION
 from claude_backlog.web.accessor import NAMESPACE, BacklogAccessor
+from claude_backlog.web.mutations import register_handlers
 
 # Static assets shipped with this plugin. The kernel passes this as
 # `static_dir` so /index.html and /static/* both resolve here.
@@ -114,6 +115,7 @@ class BacklogKernel(WebuiKernel):
         accessor = self.accessor
         static_dir = self.static_dir
         event_bus = self._event_bus
+        mutation_catalog = self._mutation_catalog
 
         class _Handler(BacklogHandler):
             pass
@@ -121,6 +123,7 @@ class BacklogKernel(WebuiKernel):
         _Handler.accessor = accessor
         _Handler.static_dir = static_dir
         _Handler.event_bus = event_bus
+        _Handler.mutation_catalog = mutation_catalog
         return _Handler
 
 
@@ -160,6 +163,14 @@ def build_kernel(
     def _signature_for_push() -> tuple:
         return accessor._signature(Stage.ANY)
 
+    # Wire the MutationCatalog for the Pattern C write surface (task-446
+    # Phase B3). Audit log lives next to the corpus so operators can grep
+    # without leaving the backlog tree. The catalog is empty until the
+    # mutations module registers its handlers below.
+    audit_dir = backlog_root / "mutations"
+    mutation_catalog = MutationCatalog(audit_dir=audit_dir, timeout_s=5.0)
+    register_handlers(mutation_catalog)
+
     kernel = BacklogKernel(
         accessor=accessor,
         port=port,
@@ -168,6 +179,7 @@ def build_kernel(
         signature_fn=_signature_for_push,
         watch_paths=watch_paths,
         poll_interval_s=1.0,
+        mutation_catalog=mutation_catalog,
     )
     kernel.satellite_namespace = NAMESPACE  # type: ignore[attr-defined]
     kernel.satellite_version = _BACKLOG_VERSION  # type: ignore[attr-defined]

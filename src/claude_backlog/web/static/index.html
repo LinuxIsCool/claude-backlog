@@ -331,6 +331,85 @@ async function trace(name, fn) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+ * Mutation dispatch (task-446 Phase C — UI as MCP dispatcher)
+ *
+ * postMutation(tool, args) POSTs to /api/mutate with X-Persona-Slug header
+ * and an idempotency_key (UUID v4 via crypto.randomUUID()). On 4xx/5xx,
+ * throws a structured error object the caller maps to a snap-back + toast.
+ * On 2xx, returns the parsed result.
+ *
+ * Hard-405 invariant is preserved everywhere else — /api/mutate is the
+ * SOLE write endpoint. See claude-webui/references/write-doctrine.md.
+ * ═══════════════════════════════════════════════════════════════════════ */
+async function postMutation(tool, args, opts = {}) {
+  const idempotencyKey = opts.idempotencyKey || (
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  const persona = (state && state.persona) || 'shawn';
+  const t0 = performance.now();
+  let resp;
+  try {
+    resp = await fetch('/api/mutate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Persona-Slug': persona,
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ tool, args, idempotency_key: idempotencyKey }),
+    });
+  } catch (netErr) {
+    throw { code: 'NETWORK', message: String(netErr) };
+  }
+  const ms = (performance.now() - t0).toFixed(0);
+  let body = null;
+  try { body = await resp.json(); } catch (_e) { /* ignore */ }
+  if (!resp.ok) {
+    const err = {
+      code: (body && body.code) || `HTTP_${resp.status}`,
+      message: (body && body.message) || resp.statusText,
+      args: body && body.args,
+      rollback_hint: body && body.rollback_hint,
+      status: resp.status,
+    };
+    console.warn(`[mutate ${tool}] ${err.code} ${ms}ms`, err);
+    throw err;
+  }
+  return body || {};
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Toast — minimal corner notice for mutation feedback.
+ * Severity: info | warn | error. Auto-dismiss after `ms`; click closes.
+ * ═══════════════════════════════════════════════════════════════════════ */
+function showToast(msg, severity = 'info', ms = null) {
+  const container = (() => {
+    let c = document.getElementById('toast-container');
+    if (!c) {
+      c = document.createElement('div');
+      c.id = 'toast-container';
+      c.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;pointer-events:none;';
+      document.body.appendChild(c);
+    }
+    return c;
+  })();
+  const bg = severity === 'error' ? '#f38ba8' : severity === 'warn' ? '#f9e2af' : '#94e2d5';
+  const fg = severity === 'error' ? '#1e1e2e' : '#1e1e2e';
+  const node = document.createElement('div');
+  node.style.cssText =
+    `background:${bg};color:${fg};padding:0.5rem 0.75rem;border-radius:0.375rem;`
+    + 'font-size:0.7rem;font-family:"JetBrains Mono",monospace;'
+    + 'box-shadow:0 4px 12px rgba(0,0,0,0.5);max-width:24rem;pointer-events:auto;cursor:pointer;';
+  node.textContent = msg;
+  node.addEventListener('click', () => node.remove());
+  container.appendChild(node);
+  const dismissMs = ms != null ? ms : (severity === 'error' ? 8000 : severity === 'warn' ? 5000 : 3000);
+  setTimeout(() => { try { node.remove(); } catch (_e) { /* gone already */ } }, dismissMs);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
  * Time helpers
  * ═══════════════════════════════════════════════════════════════════════ */
 function relativeTime(iso) {
@@ -853,11 +932,23 @@ function renderTaskCard(t) {
   if (t.due)         meta.push(['due',       t.due]);
   return el('div', {
     class: 'card border border-surface0 rounded p-2.5 bg-mantle cursor-pointer ' + (state.selected_id == String(t.id) ? 'selected' : ''),
-    dataset: { taskId: t.id },
+    dataset: { taskId: t.id, statusFamily: t.status_family || 'To Do', priority: t.priority || 'medium' },
+    draggable: true,
+    ondragstart: (e) => {
+      e.dataTransfer.setData('text/plain', String(t.id));
+      e.dataTransfer.effectAllowed = 'move';
+      e.currentTarget.style.opacity = '0.5';
+    },
+    ondragend: (e) => { e.currentTarget.style.opacity = ''; },
     onclick: () => selectTask(t.id),
   },
     el('div', { class: 'flex items-baseline gap-2 mb-1' },
-      el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}`, title: `priority: ${t.priority}` }),
+      el('span', {
+        class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}`,
+        title: `priority: ${t.priority} — click to cycle`,
+        onclick: (e) => { e.stopPropagation(); cyclePriority(t.id, t.priority || 'medium'); },
+        style: { cursor: 'pointer' },
+      }),
       el('span', { class: 'text-[0.6rem] text-overlay0 font-mono' }, `#${t.id}`),
       el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(bestTime(t))),
     ),
@@ -910,6 +1001,31 @@ function renderKanban() {
   for (const c of cols) {
     const list = groups[c].slice(0, KANBAN_CARD_LIMIT_PER_COL);
     const hidden = groups[c].length - list.length;
+    // Inner body becomes the drop target. dragover MUST preventDefault to
+    // allow drop; drop fires postMutation('set_status', {id, status: c}).
+    const body = el('div', {
+      class: 'p-2 space-y-2 min-h-[60px]',
+      dataset: { dropTarget: c },
+      ondragover: (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        body.style.background = 'rgba(203, 166, 247, 0.08)';
+      },
+      ondragleave: () => { body.style.background = ''; },
+      ondrop: (e) => {
+        e.preventDefault();
+        body.style.background = '';
+        const raw = e.dataTransfer.getData('text/plain');
+        const taskId = parseInt(raw, 10);
+        if (!taskId) return;
+        handleKanbanDrop(taskId, c);
+      },
+    },
+      list.length
+        ? list.map(renderTaskCard)
+        : el('div', { class: 'text-[0.7rem] text-overlay0 text-center py-4' }, c === 'Done' ? '— quiet —' : '— empty —'),
+      hidden > 0 ? el('div', { class: 'text-[0.6rem] text-overlay0 text-center pt-2' }, `+${hidden} more`) : null,
+    );
     wrapper.appendChild(el('div', { class: 'rounded-lg border border-surface0 bg-crust/40' },
       el('div', { class: 'sticky top-0 bg-mantle/95 border-b border-surface0 px-3 py-2 flex items-baseline gap-2 rounded-t-lg z-10' },
         el('span', { class: `badge ${STATUS_BADGE[c]}` }, c),
@@ -918,15 +1034,61 @@ function renderKanban() {
           ? el('span', { class: 'text-[0.6rem] text-yellow ml-1', title: `WIP > ${WIP_WARNING_THRESHOLD} — consider tightening` }, '⚠')
           : null,
       ),
-      el('div', { class: 'p-2 space-y-2 min-h-[60px]' },
-        list.length
-          ? list.map(renderTaskCard)
-          : el('div', { class: 'text-[0.7rem] text-overlay0 text-center py-4' }, c === 'Done' ? '— quiet —' : '— empty —'),
-        hidden > 0 ? el('div', { class: 'text-[0.6rem] text-overlay0 text-center pt-2' }, `+${hidden} more`) : null,
-      ),
+      body,
     ));
   }
   root.appendChild(wrapper);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * handleKanbanDrop — optimistic move + dispatch + rollback on failure.
+ *
+ * The visual move happens immediately (the card is reparented into the
+ * target column's body) so direct-manipulation feels responsive.
+ * postMutation() round-trips ~50-100ms; on error we move the card back
+ * + surface a toast. SSE corpus-changed fan-out from the kernel will
+ * refresh peer tabs.
+ * ═══════════════════════════════════════════════════════════════════════ */
+async function handleKanbanDrop(taskId, targetStatus) {
+  const card = document.querySelector(`[data-task-id="${taskId}"]`);
+  const prevParent = card && card.parentElement;
+  const targetBody = document.querySelector(`[data-drop-target="${cssAttrEscape(targetStatus)}"]`);
+  if (card && targetBody && prevParent !== targetBody) targetBody.appendChild(card);
+
+  try {
+    const result = await postMutation('set_status', { id: taskId, status: targetStatus });
+    if (result && result.result && result.result.noop) {
+      // No-op (current == target); silently accept.
+      return;
+    }
+    setStatus(`#${taskId} → ${targetStatus}`);
+  } catch (err) {
+    // Rollback: move card back to original column.
+    if (card && prevParent) prevParent.appendChild(card);
+    const hint = err.rollback_hint ? ` (${err.rollback_hint})` : '';
+    showToast(`drop failed: ${err.code}${hint}`, 'error');
+  }
+}
+
+/* Tiny helper: escape attribute selector value (spaces are common in statuses). */
+function cssAttrEscape(s) {
+  return String(s).replace(/(["\\])/g, '\\$1');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * cyclePriority — click the priority dot to cycle through canonical values.
+ * ═══════════════════════════════════════════════════════════════════════ */
+async function cyclePriority(taskId, current) {
+  const order = ['critical', 'high', 'medium', 'low'];
+  const idx = order.indexOf((current || 'medium').toLowerCase());
+  const next = order[((idx >= 0 ? idx : 0) + 1) % order.length];
+  try {
+    const result = await postMutation('set_priority', { id: taskId, priority: next });
+    if (result && result.result && result.result.noop) return;
+    setStatus(`#${taskId} priority → ${next}`);
+  } catch (err) {
+    showToast(`priority cycle failed: ${err.code} — ${err.message}`, 'error');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
