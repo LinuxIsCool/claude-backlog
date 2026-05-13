@@ -644,7 +644,15 @@ function sortComparator(col, dir) {
 function sortKey(t, col) {
   switch (col) {
     case 'priority':       return PRIORITY_RANK[t.priority] ?? 99;
-    case 'created':        return t.created || '';
+    // 'created' column key historically meant "frontmatter created date" but
+    // the column LABEL is "age" and the card displays bestTime(t) =
+    // modified_at || created. v0.2.7: align sort with displayed age so
+    // "newest first" matches what the operator sees on the card.
+    // Frontmatter created is YYYY-MM-DD (10 chars); modified_at is full
+    // ISO (>= 19 chars). Lexicographic compare works because ISO strings
+    // sort chronologically when same-length, and modified_at always
+    // sorts after any same-day created date (ISO > date string lex).
+    case 'created':        return t.modified_at || t.created || '';
     case 'due':            return t.due || 'zzzz';
     case 'id':             return t.id;
     case 'title':          return (t.title || '').toLowerCase();

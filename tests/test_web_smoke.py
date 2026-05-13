@@ -700,6 +700,20 @@ def test_build_kernel_wires_signature_fn_and_watch_paths(tmp_backlog) -> None:
     assert isinstance(kernel._watcher, (InotifyWatcher, SignaturePoller))
 
 
+def test_static_index_sort_age_uses_modified_at_then_created() -> None:
+    """v0.2.7 sort fix: 'created' column key sorts by t.modified_at when
+    present, falling back to t.created. The column LABEL is 'age' and the
+    rendered chip uses bestTime() — sort key must match what the operator
+    sees on the card. Without this, recently-touched tasks (modified_at
+    today, created last week) sort below tasks created today but never
+    touched, contradicting the 'newest first' default."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # The sortKey('created') branch must consult modified_at first.
+    assert "t.modified_at || t.created" in html, (
+        "sortKey('created') must align with bestTime() — see v0.2.7 fix"
+    )
+
+
 def test_static_index_has_drag_and_drop_kanban() -> None:
     """task-446 Phase B3: kanban cards become draggable + columns accept
     drops, dispatching set_status mutations via /api/mutate.
