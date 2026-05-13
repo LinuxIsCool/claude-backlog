@@ -157,6 +157,8 @@ _KNOWN_FIELDS = {
     "estimated_hours", "depends_on", "blocks", "effort", "due", "venture",
     "modified_files", "ordinal", "parent_task", "documentation",
     "on_status_change", "definition_of_done",
+    # Phase 5.1 — persona-aware (task-442)
+    "creator_persona", "assignee_persona", "persona_history",
 }
 
 
@@ -267,6 +269,13 @@ def _serialize_frontmatter(task: Task) -> dict:
         out["on_status_change"] = task.on_status_change
     if task.definition_of_done:
         out["definition_of_done"] = task.definition_of_done
+    # Phase 5.1 — persona-aware (additive; only emit when set so diffs stay small).
+    if task.creator_persona is not None:
+        out["creator_persona"] = task.creator_persona
+    if task.assignee_persona is not None:
+        out["assignee_persona"] = task.assignee_persona
+    if task.persona_history:
+        out["persona_history"] = task.persona_history
     # Round-trip extras last (preserves enrichment _pipeline block etc.)
     for k, v in task.extra_frontmatter.items():
         out[k] = v

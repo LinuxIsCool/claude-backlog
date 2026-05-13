@@ -56,6 +56,27 @@ Agents MAY rely on the stability of:
 7. **The `/dock`-generated SKILL.md description** when this plugin is
    docked as a reference by other tooling.
 
+8. **The web UI** (Phase 5.1 of task-435, parent task-442) — launched via
+   `/browser` or `python -m claude_backlog.web --port 6420`. As of Phase 5.1,
+   the public web surface is:
+   - `GET /healthz` → `ok\n`
+   - `GET /api/version` → `{name, version, phase}` JSON
+   - `GET /` and 9 SPA routes (`/list`, `/task/<id>`, `/stats`, `/graph`,
+     `/embed`, `/heatmap`, `/fdg`, `/fdg-hm`, `/compass`) all serve the
+     Alpine.js client (`web/static/index.html`).
+   - `GET /static/<path>` serves bundled CSS / JS assets.
+   - Unknown `/api/*` paths return a structured 501 `{error,phase,next_phase}`
+     placeholder so callers can detect "not yet shipped" cleanly.
+   - All write APIs (POST/PATCH/DELETE) currently return 501 — they unlock
+     in Phase 5.4.
+
+9. **Persona-aware frontmatter fields** (Phase 5.1, additive):
+   - `creator_persona: str | None` — persona slug that created the task.
+   - `assignee_persona: str | None` — persona slug currently owning it.
+   - `persona_history: list[dict] | None` — chronological handoffs, each
+     entry shape `{persona, action, at}`.
+   All three default to None/empty; tasks without them parse unchanged.
+
 ## NOT a public surface
 
 Agents MUST NOT reference, depend on, or import:
@@ -177,4 +198,4 @@ field, command rename, lifecycle stage added):
 - Vision: task-435 (~/.claude/local/backlog/task-435 - ...md).
 - Pattern reference: `~/.claude/local/dock/generated/MrLesk/Backlog.md/references/patterns-for-legion.md` §6.
 - Adoption phase: Phase 3 of task-435.
-- This file last updated: 2026-05-12.
+- This file last updated: 2026-05-12 (Phase 5.1 surface additions: web UI + persona fields, task-442).

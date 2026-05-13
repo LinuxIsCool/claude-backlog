@@ -11,6 +11,7 @@ Milestone-linked task management. Tasks connect to milestones, milestones live i
 - `/backlog triage` — review and prioritize open tasks
 - `/draft create <title>` — capture an unscoped idea (Phase 2 of task-435)
 - `/draft list | promote <id> | demote <id>` — manage drafts/
+- `/browser` — launch the web UI at `http://localhost:6420/` (Phase 5.1 of task-435, parent task-442). Skeleton ships 9 SPA routes; views populate sub-phase by sub-phase (5.2 → 5.6).
 
 ## MCP Server (Phase 4 of task-435)
 

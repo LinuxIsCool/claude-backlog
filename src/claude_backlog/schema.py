@@ -158,6 +158,26 @@ class Task(BaseModel):
     on_status_change: str | None = None
     definition_of_done: list[str] = Field(default_factory=list)
 
+    # --- Phase 5.1 additive — persona-aware schema (task-442) ---
+    # All three default-None / empty so 0 of 286 existing tasks break.
+    # creator_persona: slug from personas/characters/<name>.character.yaml
+    # assignee_persona: who currently owns the task (defaults to creator_persona)
+    # persona_history: chronological handoff log; each entry shape:
+    #   {persona: str, action: str (created|assigned|completed|reassigned|...), at: ISO-8601}
+    creator_persona: str | None = None
+    assignee_persona: str | None = None
+    persona_history: list[dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("persona_history", mode="before")
+    @classmethod
+    def _coerce_persona_history(cls, v: Any) -> Any:
+        """Accept None / list / single-dict for persona_history."""
+        if v is None:
+            return []
+        if isinstance(v, dict):
+            return [v]
+        return v
+
     # --- Round-trip safety: everything else from frontmatter ---
     extra_frontmatter: dict[str, Any] = Field(default_factory=dict)
 

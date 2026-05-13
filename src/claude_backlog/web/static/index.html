@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" x-data="backlogApp()" x-init="init()" :data-theme="theme">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>claude-backlog · web UI</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <!--
+    Phase 5.1 skeleton (task-442).
+    Sub-phases 5.2 → 5.6 populate <main>; this release only validates routing,
+    theme toggle, and the 10-tab nav contract.
+  -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <header class="top-bar">
+    <div class="brand">
+      <span class="brand-mark">▦</span>
+      <span class="brand-title">claude-backlog</span>
+      <span class="brand-phase" x-text="`phase ${version.phase}`"></span>
+    </div>
+
+    <nav class="tab-nav" aria-label="views">
+      <template x-for="tab in tabs" :key="tab.path">
+        <a
+          :href="tab.path"
+          :class="{ tab: true, 'is-active': route === tab.path || (tab.path !== '/' && route.startsWith(tab.path)) }"
+          @click.prevent="navigate(tab.path)"
+        >
+          <span class="tab-glyph" x-text="tab.glyph" aria-hidden="true"></span>
+          <span class="tab-label" x-text="tab.label"></span>
+        </a>
+      </template>
+    </nav>
+
+    <div class="top-actions">
+      <button
+        class="icon-btn"
+        :title="theme === 'dark' ? 'switch to light' : 'switch to dark'"
+        @click="toggleTheme()"
+      >
+        <span x-text="theme === 'dark' ? '☀' : '☾'"></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="view-host">
+    <!-- Phase 5.2+ replaces these placeholders with real view components.
+         Keeping the skeleton visible makes it obvious what is and isn't
+         shipped without firing a network request to know. -->
+    <section x-show="route === '/'" class="view view-placeholder">
+      <h2>Kanban</h2>
+      <p>4 default columns — wired in Phase 5.2.</p>
+    </section>
+    <section x-show="route === '/list'" class="view view-placeholder">
+      <h2>List</h2>
+      <p>Sortable table + bulk-edit — Phase 5.2 / 5.4.</p>
+    </section>
+    <section x-show="route.startsWith('/task/')" class="view view-placeholder">
+      <h2>Detail</h2>
+      <p>Full markdown + persona timeline + linked tasks — Phase 5.2.</p>
+      <p class="muted">route: <code x-text="route"></code></p>
+    </section>
+    <section x-show="route === '/stats'" class="view view-placeholder">
+      <h2>Stats</h2>
+      <p>Status / priority / venture counts + checkbox-progress histogram — Phase 5.2.</p>
+    </section>
+    <section x-show="route === '/graph'" class="view view-placeholder">
+      <h2>Dependency network</h2>
+      <p>depends_on / blocks DAG — Phase 5.5b.</p>
+    </section>
+    <section x-show="route === '/embed'" class="view view-placeholder">
+      <h2>Embedding 2D</h2>
+      <p>UMAP scatter of LLM embeddings — Phase 5.5b.</p>
+    </section>
+    <section x-show="route === '/heatmap'" class="view view-placeholder">
+      <h2>LLM distance heatmap</h2>
+      <p>Pairwise cosine distance matrix — Phase 5.5b.</p>
+    </section>
+    <section x-show="route === '/fdg'" class="view view-placeholder">
+      <h2>FDG 2D</h2>
+      <p>Force-directed-graph layout scatter — Phase 5.5b.</p>
+    </section>
+    <section x-show="route === '/fdg-hm'" class="view view-placeholder">
+      <h2>FDG distance heatmap</h2>
+      <p>Pairwise euclidean distances in FDG space — Phase 5.5b.</p>
+    </section>
+    <section x-show="route === '/compass'" class="view view-placeholder">
+      <h2>Compass</h2>
+      <p>Real-time prompt-to-distance heatmap — Phase 5.5b.</p>
+    </section>
+  </main>
+
+  <footer class="bottom-bar">
+    <span class="footer-meta">
+      <code x-text="version.name"></code> · v<span x-text="version.version"></span> ·
+      <a href="https://github.com/shawnwhitney/legion-plugins" target="_blank" rel="noopener">legion-plugins</a>
+    </span>
+    <span class="footer-meta muted">
+      <span x-text="`route ${route}`"></span>
+    </span>
+  </footer>
+</body>
+</html>
