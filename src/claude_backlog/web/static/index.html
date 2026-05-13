@@ -6,9 +6,10 @@
   <title>claude-backlog · Trello-style task board</title>
 
   <!--
-    Phase 2 satellite of claude-webui (task-441) — FLEET-QUALITY REBUILD.
+    Phase 2 satellite of claude-webui (task-441) — FLEET-QUALITY REBUILD + round-1 bug-fix pass.
     Pattern source: claude-recordings/web/index.html + claude-youtube/web/index.html
     Doctrine: kernel-webui v1 (~/.claude/plugins/local/legion-plugins/plugins/claude-webui/CLAUDE.md)
+    Engineering practices doctrine: ~/.claude/local/scratchpad/2026-05-12T19-35-kernel-webui-engineering-practices.md
   -->
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -110,6 +111,14 @@
 
     .live-on { animation: pulse-mauve 1.8s ease-in-out infinite; }
 
+    .sort-th { cursor: pointer; user-select: none; }
+    .sort-th:hover { color: #cba6f7; }
+    .sort-th.asc::after  { content: ' ▲'; color: #a6e3a1; }
+    .sort-th.desc::after { content: ' ▼'; color: #a6e3a1; }
+
+    .meta-line { color: #bac2de; font-size: 0.6rem; }
+    .meta-line .meta-key { color: #6c7086; }
+
     .scrim-open #left-nav { transform: translateX(0); }
     @media (max-width: 1024px) {
       #left-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 280px;
@@ -174,11 +183,31 @@
 <script>
 "use strict";
 
-/* ─── STATE ──────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * CONSTANTS (named thresholds — no magic numbers in hot paths)
+ * ═══════════════════════════════════════════════════════════════════════ */
+const POLL_INTERVAL_MS        = 8000;
+const SEARCH_DEBOUNCE_MS      = 150;
+const WIP_WARNING_THRESHOLD   = 7;        // Kanban WIP > threshold → ⚠ on column
+const TAG_CHIPS_PER_CARD      = 4;        // Show N tags, then "+M more"
+const KANBAN_CARD_LIMIT_PER_COL = 200;    // Cap cards rendered per column
+const LIST_VIEW_HARD_LIMIT    = 2000;
+const MINISEARCH_FIELDS       = ["id", "title", "tags_text", "venture", "milestone", "body"];
+const MINISEARCH_WEIGHTS      = { id: 10, title: 5, tags_text: 3, venture: 2, milestone: 2, body: 1 };
+const STATUS_FAMILIES         = ["To Do", "In Progress", "Blocked", "Done", "Draft"];
+const PRIORITY_RANK           = { critical: 0, high: 1, medium: 2, low: 3 };
+const SORT_DEFAULT_DIR        = {
+  priority: "asc", created: "desc", due: "asc", id: "asc",
+  title: "asc", status_family: "asc", venture: "asc", milestone: "asc", checkbox: "desc",
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * STATE
+ * ═══════════════════════════════════════════════════════════════════════ */
 const initialParams = new URLSearchParams(location.search);
 
 window.BacklogApp = {
-  version: '0.2.0',
+  version: '0.2.1',
   state: {
     view:          (initialParams.get('view')          || 'kanban'),
     selected_id:   (initialParams.get('task')          || null),
@@ -190,8 +219,12 @@ window.BacklogApp = {
     creator_persona:  initialParams.get('creator_persona')  || '',
     assignee_persona: initialParams.get('assignee_persona') || '',
     include_done:  initialParams.get('include_done') === '1',
-    live:          (localStorage.getItem('legion.backlog.live')   === '1'),
-    tasks:         [],
+    sort_col:      initialParams.get('sort_col')  || 'priority',
+    sort_dir:      initialParams.get('sort_dir')  || 'asc',
+    live:          (localStorage.getItem('legion.backlog.live') === '1'),
+    corpus:        [],     // ALL tasks (cached locally; refreshed on load + poll)
+    corpus_loaded: false,
+    minisearch:    null,   // MiniSearch index built once from corpus
     facets:        null,
     stats:         null,
     health:        null,
@@ -207,8 +240,6 @@ const VIEWS = [
   { key: 'about',  label: 'About'  },
 ];
 
-const KANBAN_COLUMNS = ['To Do', 'In Progress', 'Blocked', 'Done', 'Draft'];
-
 const STATUS_BADGE = {
   'To Do':       'badge-todo',
   'In Progress': 'badge-inprogress',
@@ -223,7 +254,9 @@ const PRIORITY_DOT = {
   'low':      'pri-dot-low',
 };
 
-/* ─── el() SAFE DOM BUILDER ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * el() — SAFE DOM BUILDER (never sets a live element's inner-HTML)
+ * ═══════════════════════════════════════════════════════════════════════ */
 function el(tag, attrs, ...children) {
   const node = document.createElement(tag);
   if (attrs) {
@@ -251,8 +284,10 @@ function clear(n) { if (!n) return; while (n.firstChild) n.removeChild(n.firstCh
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-/* ─── api() JSON fetch ─────────────────────────────────────────────── */
-async function api(path, params = null) {
+/* ═══════════════════════════════════════════════════════════════════════
+ * api() — JSON fetch with status reporting + AbortController support
+ * ═══════════════════════════════════════════════════════════════════════ */
+async function api(path, params = null, opts = {}) {
   let url = path;
   if (params) {
     const u = new URLSearchParams();
@@ -264,15 +299,36 @@ async function api(path, params = null) {
     if (qs) url += (path.includes('?') ? '&' : '?') + qs;
   }
   const t0 = performance.now();
-  const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+  const resp = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: opts.signal,
+  });
   const ms = (performance.now() - t0).toFixed(0);
   setStatus(`${path} → ${resp.status} (${ms}ms)`);
   if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
   return resp.json();
 }
-function setStatus(msg) { $('#footer-status').textContent = msg; }
+function setStatus(msg) { const n = $('#footer-status'); if (n) n.textContent = msg; }
 
-/* ─── Time helpers ──────────────────────────────────────────────────── */
+/* trace() — wrap async actions with User Timing marks for observability */
+async function trace(name, fn) {
+  const start = performance.now();
+  try {
+    performance.mark(`${name}:start`);
+    const out = await fn();
+    performance.mark(`${name}:end`);
+    performance.measure(name, `${name}:start`, `${name}:end`);
+    return out;
+  } catch (e) {
+    console.error(`[trace] ${name}:`, e);
+    setStatus(`error in ${name}: ${e.message}`);
+    throw e;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Time helpers
+ * ═══════════════════════════════════════════════════════════════════════ */
 function relativeTime(iso) {
   if (!iso) return '';
   const t = Date.parse(iso);
@@ -287,7 +343,9 @@ function relativeTime(iso) {
   return `${Math.floor(d/86400/365)}y ago`;
 }
 
-/* ─── Search-term highlight (matchAll, no live-element inner-HTML) ──── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Search-term highlight (matchAll-based, builds DOM nodes, never inner-HTML)
+ * ═══════════════════════════════════════════════════════════════════════ */
 function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function termsFromQuery(q) {
   if (!q) return [];
@@ -311,7 +369,9 @@ function buildExcerpt(text, query) {
   return out;
 }
 
-/* ─── URL state ─────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * URL state — push, restore, migrate
+ * ═══════════════════════════════════════════════════════════════════════ */
 function pushUrlState() {
   const p = new URLSearchParams();
   if (state.view !== 'kanban')   p.set('view', state.view);
@@ -324,73 +384,193 @@ function pushUrlState() {
   if (state.creator_persona)     p.set('creator_persona', state.creator_persona);
   if (state.assignee_persona)    p.set('assignee_persona', state.assignee_persona);
   if (state.include_done)        p.set('include_done', '1');
+  if (state.sort_col !== 'priority' || state.sort_dir !== 'asc') {
+    p.set('sort_col', state.sort_col);
+    p.set('sort_dir', state.sort_dir);
+  }
   if (state.embedded)            p.set('embedded', '1');
   const qs = p.toString();
   const target = qs ? `?${qs}` : location.pathname;
   history.replaceState({}, '', target);
 }
 
-/* ─── Loaders ───────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Loaders (corpus is cached client-side; filter/search/sort runs LOCALLY)
+ * ═══════════════════════════════════════════════════════════════════════ */
 async function loadFacets() { state.facets = await api('/api/facets'); return state.facets; }
 async function loadStats()  { state.stats  = await api('/api/stats');  return state.stats; }
 async function loadHealth() { state.health = await api('/healthz');    return state.health; }
-async function loadTasks() {
-  const params = {
-    limit: 1000,
-    status_family:    state.status_family || undefined,
-    priority:         state.priority || undefined,
-    venture:          state.venture || undefined,
-    tag:              state.tag || undefined,
-    creator_persona:  state.creator_persona || undefined,
-    assignee_persona: state.assignee_persona || undefined,
-    include_done:     state.status_family === 'Done' ? '1' : (state.include_done ? '1' : undefined),
-    q:                state.q || undefined,
-  };
-  state.tasks = await api('/api/list', params);
-  return state.tasks;
+async function loadCorpus() {
+  // Single round-trip to pull ALL active tasks. Includes Done so kanban
+  // can show the Done column without a separate request.
+  const rows = await api('/api/list', { limit: LIST_VIEW_HARD_LIMIT, include_done: '1' });
+  state.corpus = rows;
+  state.corpus_loaded = true;
+  buildMiniSearchIndex();
+  return rows;
 }
-async function loadDetail(id) { if (!id) return null; return api(`/api/detail/${encodeURIComponent(id)}`); }
+async function loadDetail(id) {
+  if (!id) return null;
+  return api(`/api/detail/${encodeURIComponent(id)}`);
+}
 
-/* ─── Search input ──────────────────────────────────────────────────── */
-function renderSearchInput() {
+/* ═══════════════════════════════════════════════════════════════════════
+ * MiniSearch — client-side index for instant filter + search
+ * ═══════════════════════════════════════════════════════════════════════ */
+function buildMiniSearchIndex() {
+  const ms = new MiniSearch({
+    fields: MINISEARCH_FIELDS,
+    storeFields: ['id'],   // We re-hydrate from state.corpus by id
+    searchOptions: {
+      boost: MINISEARCH_WEIGHTS,
+      prefix: true,
+      fuzzy: 0.2,
+      combineWith: 'AND',
+    },
+    idField: 'id',
+  });
+  ms.addAll(state.corpus.map((t) => ({
+    id: t.id,
+    title: t.title || '',
+    tags_text: (t.tags || []).join(' '),
+    venture: t.venture || '',
+    milestone: String(t.milestone || ''),
+    body: '',  // Bodies aren't shipped with /api/list; only title+meta searchable client-side
+  })));
+  state.minisearch = ms;
+}
+
+/* clientFilter — runs the full filter+search+sort pipeline LOCALLY.
+   The corpus is in memory; every filter chip and keystroke runs in <30ms
+   over ~300 tasks. Falls back to server-side /api/list params only when
+   the corpus isn't yet loaded.
+*/
+function clientFilter() {
+  if (!state.corpus_loaded) return [];
+  let pool = state.corpus.slice();
+  // include_done semantics — server already includes Done in loadCorpus;
+  // filter it back out here unless flag set OR explicit Done family filter.
+  if (!state.include_done && state.status_family !== 'Done') {
+    pool = pool.filter((t) => (t.status || '').toLowerCase() !== 'done' && (t.status || '').toLowerCase() !== 'cancelled');
+  }
+  // Filter chips (no q match here — q handled via MiniSearch below).
+  pool = pool.filter((t) => {
+    if (state.status_family && t.status_family !== state.status_family) return false;
+    if (state.priority && t.priority !== state.priority) return false;
+    if (state.venture && (!t.venture || !t.venture.toLowerCase().includes(state.venture.toLowerCase()))) return false;
+    if (state.tag && !(t.tags || []).some((tg) => tg.toLowerCase().includes(state.tag.toLowerCase()))) return false;
+    if (state.creator_persona && t.creator_persona !== state.creator_persona) return false;
+    if (state.assignee_persona && t.assignee_persona !== state.assignee_persona) return false;
+    return true;
+  });
+  // Search via MiniSearch — intersects the filtered pool with text hits.
+  if (state.q && state.minisearch) {
+    const q = state.q.trim();
+    const queryIds = new Set();
+    // Numeric query → also match the literal id field on the corpus
+    // (covers "446" matching task-446 even though body isn't indexed).
+    const numericMatch = /^\d+$/.test(q);
+    if (numericMatch) {
+      for (const t of pool) {
+        const idStr = String(t.id);
+        if (idStr === q || idStr.includes(q)) queryIds.add(t.id);
+      }
+    }
+    const hits = state.minisearch.search(q, { combineWith: 'AND' });
+    for (const h of hits) queryIds.add(h.id);
+    pool = pool.filter((t) => queryIds.has(t.id));
+  }
+  // Sort.
+  pool.sort(sortComparator(state.sort_col, state.sort_dir));
+  return pool;
+}
+
+function sortComparator(col, dir) {
+  const mul = dir === 'desc' ? -1 : 1;
+  return (a, b) => {
+    const ka = sortKey(a, col); const kb = sortKey(b, col);
+    if (ka < kb) return -1 * mul;
+    if (ka > kb) return  1 * mul;
+    // tiebreak: priority then created
+    const pa = PRIORITY_RANK[a.priority] ?? 99;
+    const pb = PRIORITY_RANK[b.priority] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return (b.created || '').localeCompare(a.created || '');
+  };
+}
+function sortKey(t, col) {
+  switch (col) {
+    case 'priority':       return PRIORITY_RANK[t.priority] ?? 99;
+    case 'created':        return t.created || '';
+    case 'due':            return t.due || 'zzzz';
+    case 'id':             return t.id;
+    case 'title':          return (t.title || '').toLowerCase();
+    case 'status_family':  return t.status_family || '';
+    case 'venture':        return (t.venture || '').toLowerCase();
+    case 'milestone':      return String(t.milestone || '').toLowerCase();
+    case 'checkbox':       return t.checkbox_total ? (t.checkbox_checked / t.checkbox_total) : -1;
+    default:               return 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Mount-once components (search input + live toggle — never re-render
+ *   because they OWN their own state. State flows OUT of them via events,
+ *   never IN via re-render. Solves the cursor-focus-loss bug by construction.
+ * ═══════════════════════════════════════════════════════════════════════ */
+function mountSearchInput() {
   const slot = $('#search-slot');
-  clear(slot);
-  const ph = state.stats ? `Search ${state.stats.active_total} active tasks  (press /)` : 'Search';
+  if (slot.dataset.mounted === '1') {
+    // Update placeholder when corpus loads; never replace the element.
+    const inp = slot.querySelector('input');
+    if (inp && state.stats) {
+      inp.placeholder = `Search ${state.stats.active_total} active tasks  (press /)`;
+    }
+    return;
+  }
   const input = el('input', {
-    type: 'search', id: 'search-input', placeholder: ph, value: state.q,
+    type: 'search',
+    id: 'search-input',
+    placeholder: state.stats ? `Search ${state.stats.active_total} active tasks  (press /)` : 'Search…',
+    value: state.q,
     class: 'w-full bg-surface0 border border-surface1 rounded px-3 py-1.5 text-sm '
          + 'text-text placeholder:text-overlay0 focus:outline-none focus:border-mauve',
   });
   let timer = null;
+  let pendingAbort = null;
   input.addEventListener('input', (e) => {
     if (timer) clearTimeout(timer);
+    if (pendingAbort) { pendingAbort.abort(); pendingAbort = null; }
     timer = setTimeout(() => {
       state.q = e.target.value;
       pushUrlState();
-      renderView();
-    }, 200);
+      renderView();   // No server roundtrip — pure client filter
+    }, SEARCH_DEBOUNCE_MS);
   });
   slot.appendChild(input);
+  slot.dataset.mounted = '1';
 }
 
-/* ─── Live-poll toggle ──────────────────────────────────────────────── */
-function renderLiveToggle() {
+function mountLiveToggle() {
   const slot = $('#live-toggle-slot');
-  clear(slot);
+  if (slot.dataset.mounted === '1') return;
   const btn = el('button', {
+    id: 'live-toggle',
     class: 'border border-surface0 rounded px-2 py-1 text-xs ' + (state.live ? 'live-on text-mauve' : 'text-overlay0'),
     title: state.live ? 'live polling on — click to disable' : 'live polling off — click to enable',
     onclick: () => {
       state.live = !state.live;
       localStorage.setItem('legion.backlog.live', state.live ? '1' : '0');
-      renderLiveToggle();
+      // Update style WITHOUT replacing element.
+      btn.className = 'border border-surface0 rounded px-2 py-1 text-xs ' + (state.live ? 'live-on text-mauve' : 'text-overlay0');
+      btn.title = state.live ? 'live polling on — click to disable' : 'live polling off — click to enable';
       schedulePoll();
     },
   }, '● LIVE');
   slot.appendChild(btn);
+  slot.dataset.mounted = '1';
 }
 
-/* ─── Health badge ──────────────────────────────────────────────────── */
 function renderHealth() {
   const slot = $('#healthz-slot');
   clear(slot);
@@ -404,12 +584,14 @@ function renderHealth() {
   ));
 }
 
-/* ─── Filter chips ──────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Filter chips (re-render on filter state change; idempotent)
+ * ═══════════════════════════════════════════════════════════════════════ */
 const FILTER_DEFS = [
   { key: 'priority',         label: 'Priority', options: () => state.facets ? state.facets.priorities : [] },
   { key: 'status_family',    label: 'Status',   options: () => state.facets ? state.facets.status_families : [] },
-  { key: 'venture',          label: 'Venture',  options: () => state.facets ? state.facets.ventures.slice(0,10).map(o=>o.value) : [] },
-  { key: 'tag',              label: 'Tag',      options: () => state.facets ? state.facets.tags.slice(0,20).map(o=>o.value) : [] },
+  { key: 'venture',          label: 'Venture',  options: () => state.facets ? state.facets.ventures.slice(0,15).map(o=>o.value) : [] },
+  { key: 'tag',              label: 'Tag',      options: () => state.facets ? state.facets.tags.slice(0,25).map(o=>o.value) : [] },
   { key: 'creator_persona',  label: 'Creator',  options: () => state.facets ? state.facets.creator_personas.map(o=>o.value)  : [], skipWhenEmpty: true },
   { key: 'assignee_persona', label: 'Assignee', options: () => state.facets ? state.facets.assignee_personas.map(o=>o.value) : [], skipWhenEmpty: true },
 ];
@@ -419,7 +601,7 @@ function toggleChipMenu(anchor, def, opts) {
   if (_openChipMenu) { _openChipMenu.remove(); _openChipMenu = null; }
   const menu = el('div', {
     class: 'absolute z-40 mt-1 left-0 rounded border border-surface0 bg-mantle shadow-2xl '
-         + 'min-w-[180px] max-h-[280px] overflow-y-auto p-1',
+         + 'min-w-[200px] max-h-[320px] overflow-y-auto p-1',
   });
   const choose = (v) => {
     state[def.key] = (state[def.key] === v) ? '' : v;
@@ -466,15 +648,23 @@ function renderFilterChips() {
     );
     slot.appendChild(chip);
   }
-  const incDone = el('button', {
+  // sort chip
+  slot.appendChild(el('div', { class: 'relative inline-block ml-2' },
+    el('button', {
+      class: 'chip border rounded px-2 py-1 border-surface0 text-subtext0',
+      onclick: (e) => toggleSortMenu(e.currentTarget),
+    }, `Sort: ${state.sort_col} ${state.sort_dir}`, el('span', { class: 'ml-1 text-overlay0' }, '▾')),
+  ));
+  // include-done toggle
+  slot.appendChild(el('button', {
     class: 'chip border rounded px-2 py-1 ' + (state.include_done ? 'active' : 'border-surface0 text-subtext0'),
     onclick: () => {
       state.include_done = !state.include_done;
       pushUrlState();
       renderView();
     },
-  }, state.include_done ? '☑ include done' : '☐ include done');
-  slot.appendChild(incDone);
+  }, state.include_done ? '☑ include done' : '☐ include done'));
+  // clear all
   const anyActive = ['priority','status_family','venture','tag','creator_persona','assignee_persona'].some(k => state[k]);
   if (anyActive || state.q) {
     slot.appendChild(el('button', {
@@ -491,16 +681,51 @@ function renderFilterChips() {
   }
 }
 
-/* ─── Left nav (view tabs + stats + ventures) ──────────────────────── */
+const SORT_COLS = ['priority', 'created', 'due', 'id', 'title', 'status_family', 'venture', 'milestone', 'checkbox'];
+
+function toggleSortMenu(anchor) {
+  if (_openChipMenu) { _openChipMenu.remove(); _openChipMenu = null; }
+  const menu = el('div', {
+    class: 'absolute z-40 mt-1 left-0 rounded border border-surface0 bg-mantle shadow-2xl min-w-[200px] p-1',
+  });
+  for (const col of SORT_COLS) {
+    for (const dir of ['asc', 'desc']) {
+      const sel = state.sort_col === col && state.sort_dir === dir;
+      menu.appendChild(el('button', {
+        class: 'block w-full text-left px-2 py-1 text-xs hover:bg-surface0 rounded ' + (sel ? 'text-green' : 'text-subtext1'),
+        onclick: () => {
+          state.sort_col = col; state.sort_dir = dir;
+          pushUrlState();
+          if (_openChipMenu) { _openChipMenu.remove(); _openChipMenu = null; }
+          renderView();
+        },
+      }, `${col} ${dir}`));
+    }
+  }
+  anchor.parentElement.appendChild(menu);
+  _openChipMenu = menu;
+  setTimeout(() => {
+    const closer = (e) => {
+      if (!menu.contains(e.target) && e.target !== anchor) {
+        menu.remove(); _openChipMenu = null;
+        document.removeEventListener('click', closer);
+      }
+    };
+    document.addEventListener('click', closer);
+  }, 0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Left nav (view tabs + stats + ventures)
+ * ═══════════════════════════════════════════════════════════════════════ */
 function renderLeftNav() {
   const nav = $('#view-nav');
   clear(nav);
   for (const v of VIEWS) {
-    const tab = el('button', {
+    nav.appendChild(el('button', {
       class: 'nav-tab w-full text-left rounded px-2 py-2 text-xs border border-transparent ' + (state.view === v.key ? 'active' : 'text-subtext1'),
       onclick: () => { state.view = v.key; pushUrlState(); renderView(); },
-    }, v.label);
-    nav.appendChild(tab);
+    }, v.label));
   }
 
   const ls = $('#left-stats');
@@ -516,6 +741,10 @@ function renderLeftNav() {
     ls.appendChild(el('div', { class: 'flex items-baseline gap-2' },
       el('span', null, 'drafts'),
       el('span', { class: 'ml-auto font-mono text-text' }, String(state.stats.drafts_total)),
+    ));
+    ls.appendChild(el('div', { class: 'flex items-baseline gap-2' },
+      el('span', null, 'shown'),
+      el('span', { class: 'ml-auto font-mono text-green' }, String(clientFilter().length)),
     ));
     ls.appendChild(el('div', { class: 'flex items-baseline gap-2' },
       el('span', null, 'checkboxes'),
@@ -542,9 +771,18 @@ function renderLeftNav() {
   }
 }
 
-/* ─── Task card ─────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Task card — Trello-style, NO truncation on venture / milestone /
+ *   parent_task. Shows full meta-line below the title.
+ * ═══════════════════════════════════════════════════════════════════════ */
 function renderTaskCard(t) {
   const pct = t.checkbox_total ? Math.round(100 * t.checkbox_checked / t.checkbox_total) : null;
+  // Meta-line: every populated coordinate shows, no truncation.
+  const meta = [];
+  if (t.venture)     meta.push(['venture',   t.venture]);
+  if (t.parent_task) meta.push(['project',   `#${t.parent_task}`]);
+  if (t.milestone)   meta.push(['milestone', String(t.milestone)]);
+  if (t.due)         meta.push(['due',       t.due]);
   return el('div', {
     class: 'card border border-surface0 rounded p-2.5 bg-mantle cursor-pointer ' + (state.selected_id == String(t.id) ? 'selected' : ''),
     dataset: { taskId: t.id },
@@ -553,19 +791,24 @@ function renderTaskCard(t) {
     el('div', { class: 'flex items-baseline gap-2 mb-1' },
       el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}`, title: `priority: ${t.priority}` }),
       el('span', { class: 'text-[0.6rem] text-overlay0 font-mono' }, `#${t.id}`),
-      t.parent_task ? el('span', { class: 'text-[0.6rem] text-overlay0', title: `subtask of #${t.parent_task}` }, `↳ ${t.parent_task}`) : null,
       el('span', { class: 'ml-auto text-[0.6rem] text-overlay0' }, relativeTime(t.created)),
     ),
-    el('div', { class: 'text-xs text-text clamp-2 mb-1.5 leading-snug' },
+    el('div', { class: 'text-xs text-text mb-1.5 leading-snug' },
       ...buildExcerpt(t.title, state.q),
     ),
+    meta.length ? el('div', { class: 'meta-line space-y-0.5 mb-1.5' },
+      ...meta.map(([k, v]) => el('div', null,
+        el('span', { class: 'meta-key' }, `${k} · `),
+        v,
+      )),
+    ) : null,
     t.tags && t.tags.length
       ? el('div', { class: 'flex flex-wrap gap-1 mb-1.5' },
-          ...t.tags.slice(0, 4).map(tag => el('span', {
+          ...t.tags.slice(0, TAG_CHIPS_PER_CARD).map(tag => el('span', {
             class: 'tag-chip cursor-pointer hover:text-green',
             onclick: (e) => { e.stopPropagation(); state.tag = state.tag === tag ? '' : tag; pushUrlState(); renderView(); },
           }, tag)),
-          t.tags.length > 4 ? el('span', { class: 'tag-chip text-overlay0' }, `+${t.tags.length - 4}`) : null,
+          t.tags.length > TAG_CHIPS_PER_CARD ? el('span', { class: 'tag-chip text-overlay0' }, `+${t.tags.length - TAG_CHIPS_PER_CARD}`) : null,
         )
       : null,
     (pct !== null)
@@ -574,80 +817,120 @@ function renderTaskCard(t) {
           el('div', { class: 'text-[0.6rem] text-overlay0 mt-0.5' }, `${t.checkbox_checked}/${t.checkbox_total} · ${pct}%`),
         )
       : null,
-    t.venture
-      ? el('div', { class: 'text-[0.6rem] text-overlay0 mt-1 clamp-1' }, t.venture)
-      : null,
   );
 }
 
-/* ─── Kanban view ───────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Kanban view — filtered + sorted client-side, columns show count + WIP warn
+ * ═══════════════════════════════════════════════════════════════════════ */
 function renderKanban() {
   const root = $('#view-root');
   clear(root);
-  const cols = KANBAN_COLUMNS.filter(c => c !== 'Draft' || (state.stats && state.stats.drafts_total > 0));
-  const wrapper = el('div', { class: 'grid gap-3', style: { gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` } });
-
+  if (!state.corpus_loaded) {
+    root.appendChild(el('div', { class: 'flex items-center gap-2 text-overlay0 text-xs p-4' },
+      el('span', { class: 'spinner' }), 'loading corpus…'));
+    return;
+  }
+  const filtered = clientFilter();
+  const cols = STATUS_FAMILIES.filter(c => c !== 'Draft' || (state.stats && state.stats.drafts_total > 0));
   const groups = Object.fromEntries(cols.map(c => [c, []]));
-  for (const t of state.tasks) {
+  for (const t of filtered) {
     const fam = t.status_family || 'To Do';
     if (groups[fam]) groups[fam].push(t);
   }
-
+  const wrapper = el('div', { class: 'grid gap-3', style: { gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` } });
   for (const c of cols) {
-    const list = groups[c];
+    const list = groups[c].slice(0, KANBAN_CARD_LIMIT_PER_COL);
+    const hidden = groups[c].length - list.length;
     wrapper.appendChild(el('div', { class: 'rounded-lg border border-surface0 bg-crust/40' },
       el('div', { class: 'sticky top-0 bg-mantle/95 border-b border-surface0 px-3 py-2 flex items-baseline gap-2 rounded-t-lg z-10' },
         el('span', { class: `badge ${STATUS_BADGE[c]}` }, c),
-        el('span', { class: 'text-[0.65rem] text-overlay0 ml-auto font-mono' }, String(list.length)),
-        list.length > 7 && c === 'In Progress'
-          ? el('span', { class: 'text-[0.6rem] text-yellow ml-1', title: 'WIP > 7 — consider tightening' }, '⚠')
+        el('span', { class: 'text-[0.65rem] text-overlay0 ml-auto font-mono' }, String(groups[c].length)),
+        list.length > WIP_WARNING_THRESHOLD && c === 'In Progress'
+          ? el('span', { class: 'text-[0.6rem] text-yellow ml-1', title: `WIP > ${WIP_WARNING_THRESHOLD} — consider tightening` }, '⚠')
           : null,
       ),
       el('div', { class: 'p-2 space-y-2 min-h-[60px]' },
         list.length
           ? list.map(renderTaskCard)
           : el('div', { class: 'text-[0.7rem] text-overlay0 text-center py-4' }, c === 'Done' ? '— quiet —' : '— empty —'),
+        hidden > 0 ? el('div', { class: 'text-[0.6rem] text-overlay0 text-center pt-2' }, `+${hidden} more`) : null,
       ),
     ));
   }
   root.appendChild(wrapper);
 }
 
-/* ─── List view ─────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * List view — clickable headers for sort, milestone + venture unbounded
+ * ═══════════════════════════════════════════════════════════════════════ */
 function renderList() {
   const root = $('#view-root');
   clear(root);
+  if (!state.corpus_loaded) {
+    root.appendChild(el('div', { class: 'flex items-center gap-2 text-overlay0 text-xs p-4' },
+      el('span', { class: 'spinner' }), 'loading corpus…'));
+    return;
+  }
+  const tasks = clientFilter();
   const card = el('div', { class: 'rounded-lg border border-surface0 bg-mantle overflow-x-auto' });
   const tbl = el('table', { class: 'w-full text-xs' });
-  const thead = el('thead', null,
-    el('tr', { class: 'text-left text-overlay1 border-b border-surface0' },
-      ...['id', 'title', 'status', 'pri', 'progress', 'tags', 'venture', 'age'].map(h =>
-        el('th', { class: 'px-2 py-2 font-medium' }, h),
-      ),
-    ),
-  );
+  // Each header cell is clickable; toggles direction on re-click.
+  const headerCols = [
+    { key: 'id',            label: 'id' },
+    { key: 'title',         label: 'title' },
+    { key: 'status_family', label: 'status' },
+    { key: 'priority',      label: 'pri' },
+    { key: 'checkbox',      label: 'progress' },
+    { key: null,            label: 'tags' },
+    { key: 'venture',       label: 'venture' },
+    { key: 'milestone',     label: 'milestone' },
+    { key: 'created',       label: 'age' },
+  ];
+  const tr = el('tr', { class: 'text-left text-overlay1 border-b border-surface0' });
+  for (const h of headerCols) {
+    const dirClass = (h.key && state.sort_col === h.key) ? state.sort_dir : '';
+    const th = el('th', {
+      class: `px-2 py-2 font-medium ${h.key ? 'sort-th' : ''} ${dirClass}`,
+      onclick: h.key ? (() => {
+        if (state.sort_col === h.key) {
+          state.sort_dir = state.sort_dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.sort_col = h.key;
+          state.sort_dir = SORT_DEFAULT_DIR[h.key] || 'asc';
+        }
+        pushUrlState();
+        renderView();
+      }) : undefined,
+    }, h.label);
+    tr.appendChild(th);
+  }
+  tbl.appendChild(el('thead', null, tr));
   const tbody = el('tbody');
-  for (const t of state.tasks) {
+  for (const t of tasks) {
     const row = el('tr', {
       class: 'border-b border-surface0/50 hover:bg-surface0/30 cursor-pointer ' + (state.selected_id == String(t.id) ? 'bg-green/5' : ''),
       onclick: () => selectTask(t.id),
     },
       el('td', { class: 'px-2 py-1 text-overlay0 font-mono' }, `#${t.id}`),
-      el('td', { class: 'px-2 py-1 clamp-1' }, ...buildExcerpt(t.title, state.q)),
+      el('td', { class: 'px-2 py-1' }, ...buildExcerpt(t.title, state.q)),
       el('td', { class: 'px-2 py-1' }, el('span', { class: `badge ${STATUS_BADGE[t.status_family]}` }, t.status_family)),
       el('td', { class: 'px-2 py-1' }, el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority]}` }), el('span', { class: 'ml-1 text-overlay1' }, t.priority)),
       el('td', { class: 'px-2 py-1 text-overlay1 font-mono' }, t.checkbox_total ? `${t.checkbox_checked}/${t.checkbox_total}` : '—'),
       el('td', { class: 'px-2 py-1 text-overlay1' }, (t.tags || []).slice(0, 3).join(', ')),
-      el('td', { class: 'px-2 py-1 text-overlay1 clamp-1' }, t.venture || ''),
+      el('td', { class: 'px-2 py-1 text-overlay1' }, t.venture || ''),
+      el('td', { class: 'px-2 py-1 text-overlay1' }, String(t.milestone || '')),
       el('td', { class: 'px-2 py-1 text-overlay0 font-mono' }, relativeTime(t.created)),
     );
     tbody.appendChild(row);
   }
-  tbl.appendChild(thead); tbl.appendChild(tbody); card.appendChild(tbl);
+  tbl.appendChild(tbody); card.appendChild(tbl);
   root.appendChild(card);
 }
 
-/* ─── Stats view ────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Stats view — surfaces corpus-hygiene findings (raw status sprawl, etc.)
+ * ═══════════════════════════════════════════════════════════════════════ */
 function renderStats() {
   const root = $('#view-root');
   clear(root);
@@ -702,7 +985,9 @@ function renderStats() {
   root.appendChild(grid);
 }
 
-/* ─── About view ────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * About view
+ * ═══════════════════════════════════════════════════════════════════════ */
 function renderAbout() {
   const root = $('#view-root');
   clear(root);
@@ -710,16 +995,16 @@ function renderAbout() {
   card.appendChild(el('div', { class: 'font-pixel text-mauve text-sm mb-4 tracking-wider' }, 'CLAUDE-BACKLOG WEB UI'));
   card.appendChild(el('div', { class: 'space-y-3 text-sm text-subtext1' },
     el('p', null, 'Trello-style task board for the claude-backlog corpus. First satellite of the claude-webui Surfacing-cluster shell (task-441 Phase 2).'),
-    el('p', null, 'Reads from ~/.claude/local/backlog/task-*.md and ~/.claude/local/backlog/drafts/. ', el('strong', null, 'Read-only.'), ' Mutations live in the claude-backlog MCP server.'),
-    el('p', null, 'Status families collapse 24+ raw status strings into 5 canonical columns (To Do / In Progress / Blocked / Done / Draft). The raw string is preserved per task — see /stats for the full distribution.'),
-    el('p', null, 'Search uses server-side weighted substring across title (5x), tags (3x), venture/milestone (2x), body (1x). Matched terms highlight as ', el('mark', null, 'yellow chips'), ' in the title.'),
-    el('p', null, 'URL state is durable — every filter chip + selection writes to ?query string. Bookmark any view to return to it later.'),
+    el('p', null, 'Reads from ~/.claude/local/backlog/task-*.md and ~/.claude/local/backlog/drafts/. ', el('strong', null, 'Read-only.'), ' Mutations live in the claude-backlog MCP server. Write doctrine: task-446.'),
+    el('p', null, 'Status families collapse 24+ raw status strings into 5 canonical columns (To Do / In Progress / Blocked / Done / Draft). The raw string is preserved per task — see /stats.'),
+    el('p', null, 'Filter + search + sort run entirely in the browser over a cached corpus snapshot. Server is consulted on first load and every poll tick (', String(POLL_INTERVAL_MS / 1000), 's). MiniSearch 7.2.0 vendored for instant full-text matching.'),
+    el('p', null, 'URL state is durable — every filter chip + sort + selection writes to ?query string. Bookmark any view to return to it later.'),
   ));
   card.appendChild(el('hr', { class: 'my-4 border-surface0' }));
   card.appendChild(el('div', { class: 'text-xs text-overlay1 space-y-1 font-mono' },
     el('div', null, 'kernel:    claude_webui.WebuiKernel'),
     el('div', null, 'namespace: legion.claude-backlog'),
-    el('div', null, 'version:   0.2.0 (post-pivot)'),
+    el('div', null, 'version:   0.2.1 (round-1 bug-fix pass)'),
     el('div', null, 'endpoints: /healthz · /api/list · /api/detail/<id> · /api/stats · /api/feed · /api/facets · /api/search'),
   ));
   card.appendChild(el('div', { class: 'mt-4 text-xs text-overlay1 space-y-1' },
@@ -728,7 +1013,9 @@ function renderAbout() {
   root.appendChild(card);
 }
 
-/* ─── Detail panel ──────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Detail panel
+ * ═══════════════════════════════════════════════════════════════════════ */
 async function renderDetail() {
   const slot = $('#detail-slot');
   clear(slot);
@@ -764,6 +1051,7 @@ async function renderDetail() {
   }
   const meta = el('div', { class: 'text-[0.7rem] text-overlay1 space-y-1 mb-3' });
   if (t.venture)         meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'venture · '),     t.venture));
+  if (t.parent_task)     meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'project · '),     `#${t.parent_task}`));
   if (t.milestone)       meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'milestone · '),   String(t.milestone)));
   if (t.due)             meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'due · '),         t.due));
   if (t.effort)          meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'effort · '),      t.effort));
@@ -772,7 +1060,6 @@ async function renderDetail() {
   if (t.assignee_persona)meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'assignee · '),    t.assignee_persona));
   if ((t.depends_on || []).length) meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'depends · '), (t.depends_on || []).map(String).join(', ')));
   if ((t.blocks     || []).length) meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'blocks · '),  (t.blocks     || []).map(String).join(', ')));
-  if (t.parent_task)     meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'parent · '),      `#${t.parent_task}`));
   slot.appendChild(meta);
   slot.appendChild(el('div', {
     class: 'text-[0.7rem] text-subtext1 whitespace-pre-wrap leading-relaxed border-t border-surface0 pt-3 max-h-[500px] overflow-y-auto',
@@ -788,38 +1075,26 @@ function selectTask(id) {
   renderDetail();
 }
 
-/* ─── Live polling ──────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Live polling
+ * ═══════════════════════════════════════════════════════════════════════ */
 let _pollTimer = null;
-const POLL_INTERVAL_MS = 8000;
 function schedulePoll() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   if (!state.live) return;
-  _pollTimer = setInterval(async () => {
-    try {
-      await Promise.all([loadHealth(), loadStats(), loadFacets()]);
-      if (state.view === 'kanban' || state.view === 'list' || state.view === 'stats') {
-        await loadTasks();
-      }
-      renderHealth(); renderLeftNav(); renderView();
-    } catch (e) {
-      setStatus(`poll error: ${e.message}`);
-    }
-  }, POLL_INTERVAL_MS);
+  _pollTimer = setInterval(() => trace('poll', async () => {
+    await Promise.all([loadHealth(), loadStats(), loadFacets(), loadCorpus()]);
+    renderHealth(); renderLeftNav(); renderView();
+  }), POLL_INTERVAL_MS);
 }
 
-/* ─── View dispatch ─────────────────────────────────────────────────── */
-async function renderView() {
-  renderSearchInput();
+/* ═══════════════════════════════════════════════════════════════════════
+ * View dispatch — re-renders only the dynamic regions
+ * ═══════════════════════════════════════════════════════════════════════ */
+function renderView() {
+  // Header zone is mount-once; no re-render here.
   renderFilterChips();
   renderLeftNav();
-  if (state.view === 'kanban' || state.view === 'list') {
-    $('#view-root').replaceChildren(el('div', { class: 'flex items-center gap-2 text-overlay0 text-xs p-4' },
-      el('span', { class: 'spinner' }), 'loading tasks…'));
-    try { await loadTasks(); } catch (e) {
-      $('#view-root').replaceChildren(el('div', { class: 'rounded-lg border border-red/40 bg-mantle p-4 text-red text-sm' }, e.message));
-      return;
-    }
-  }
   if (state.view === 'kanban') renderKanban();
   else if (state.view === 'list') renderList();
   else if (state.view === 'stats') renderStats();
@@ -827,7 +1102,9 @@ async function renderView() {
   if (state.selected_id) renderDetail();
 }
 
-/* ─── Sidebar toggle (mobile) ───────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Sidebar toggle (mobile)
+ * ═══════════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', (e) => {
   const t = e.target;
   if (!(t instanceof Element)) return;
@@ -836,7 +1113,9 @@ document.addEventListener('click', (e) => {
   if (action === 'close-sidebar') { document.body.classList.remove('scrim-open');$('#mobile-scrim').classList.add('hidden'); }
 });
 
-/* ─── Keyboard shortcuts ────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Keyboard shortcuts
+ * ═══════════════════════════════════════════════════════════════════════ */
 document.addEventListener('keydown', (e) => {
   if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
     e.preventDefault();
@@ -853,25 +1132,30 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* ─── Embed-mode (Phase 4) ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Embed-mode (Phase 4)
+ * ═══════════════════════════════════════════════════════════════════════ */
 if (state.embedded) {
   $('#app-header').style.display = 'none';
   $('#app-footer').style.display = 'none';
 }
 
-/* ─── Init ──────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+ * Init
+ * ═══════════════════════════════════════════════════════════════════════ */
 (async function init() {
   $('#footer-namespace').textContent = 'legion.claude-backlog';
-  try {
-    await Promise.all([loadHealth(), loadStats(), loadFacets()]);
-  } catch (e) {
-    setStatus(`init error: ${e.message}`);
-  }
+  mountSearchInput();
+  mountLiveToggle();
+  // Parallel cold load — health + stats + facets + corpus.
+  await trace('init.load', async () => {
+    await Promise.all([loadHealth(), loadStats(), loadFacets(), loadCorpus()]);
+  });
   renderHealth();
-  renderLiveToggle();
+  mountSearchInput();  // Re-call to update placeholder now that stats are loaded.
   schedulePoll();
-  await renderView();
-  if (state.selected_id) await renderDetail();
+  renderView();
+  if (state.selected_id) renderDetail();
 })();
 </script>
 </body>

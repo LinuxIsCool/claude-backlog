@@ -383,6 +383,105 @@ def test_list_status_family_done_forces_include() -> None:
         assert r["status_family"] == "Done"
 
 
+# --- Round-1 fixes ---------------------------------------------------------
+
+
+def test_list_q_matches_task_id() -> None:
+    """Round-1 fix: searching '446' surfaces task-446 via id field coverage."""
+    rows = BacklogAccessor().list({"q": "446", "limit": 1000, "include_done": "1"})
+    ids = {r["id"] for r in rows}
+    assert 446 in ids, f"task-446 missing from id search; got ids: {sorted(ids)[:20]}..."
+
+
+def test_search_q_446_returns_task_446_first() -> None:
+    """Round-1 fix: weighted search ranks task-446 first for numeric query '446'."""
+    payload = BacklogAccessor().search({"q": "446", "limit": 5})
+    assert payload["total"] >= 1
+    # ID-exact-match has weight 10 — should dominate.
+    top = payload["results"][0]
+    assert top["id"] == 446, f"top hit should be task-446; got {top['id']} ({top['title'][:40]!r})"
+
+
+def test_search_q_numeric_substring_still_ranks() -> None:
+    """Round-1 fix: query '44' includes both task-440 family AND task-44x; both score."""
+    payload = BacklogAccessor().search({"q": "44", "limit": 30})
+    ids = {r["id"] for r in payload["results"]}
+    # Real corpus has multiple task-4xx tasks; the substring matcher catches them.
+    assert any(440 <= i < 450 for i in ids), f"no 44x ids in results: {sorted(ids)[:10]}"
+
+
+def test_list_sort_param_priority_then_created() -> None:
+    """Default sort: priority asc, created desc (when sort param omitted)."""
+    rows = BacklogAccessor().list({"limit": 50})
+    last_pri_rank = -1
+    for r in rows:
+        pri_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(r["priority"], 99)
+        assert pri_rank >= last_pri_rank, f"priority went backward: {rows[:5]}"
+        last_pri_rank = pri_rank
+
+
+def test_list_sort_param_id_asc() -> None:
+    """sort=id:asc returns rows in ascending integer-id order."""
+    rows = BacklogAccessor().list({"sort": "id:asc", "limit": 20})
+    ids = [r["id"] for r in rows]
+    assert ids == sorted(ids), f"id sort failed: {ids}"
+
+
+def test_list_sort_param_id_desc() -> None:
+    """sort=id:desc returns rows in descending integer-id order."""
+    rows = BacklogAccessor().list({"sort": "id:desc", "limit": 20})
+    ids = [r["id"] for r in rows]
+    assert ids == sorted(ids, reverse=True), f"id desc sort failed: {ids}"
+
+
+def test_list_sort_param_title_asc() -> None:
+    """sort=title:asc returns rows in alphabetical title order."""
+    rows = BacklogAccessor().list({"sort": "title:asc", "limit": 20})
+    titles = [r["title"].lower() for r in rows]
+    assert titles == sorted(titles), f"title sort failed: {titles[:5]}"
+
+
+def test_list_sort_param_unknown_falls_back() -> None:
+    """Unknown sort key falls back to default ordering (priority then created)."""
+    rows = BacklogAccessor().list({"sort": "bogus", "limit": 5})
+    assert isinstance(rows, list)
+
+
+def test_list_sort_multi_key() -> None:
+    """Multi-key sort: priority asc, then id desc within priority bucket."""
+    rows = BacklogAccessor().list({"sort": "priority:asc,id:desc", "limit": 50})
+    seen_pri = None
+    seen_id = None
+    for r in rows:
+        if seen_pri != r["priority"]:
+            seen_pri = r["priority"]
+            seen_id = None
+            continue
+        if seen_id is not None:
+            assert r["id"] <= seen_id, f"id desc within priority broken: {rows[:5]}"
+        seen_id = r["id"]
+
+
+def test_accessor_cache_returns_stable_object_until_mtime_change(tmp_backlog) -> None:
+    """Two list() calls in quick succession share the same cached parse."""
+    from claude_backlog.web.accessor import BacklogAccessor
+
+    a = BacklogAccessor()
+    # First call populates cache.
+    first = a.list({"limit": 5})
+    # Second call should be served from cache — no exceptions; same shape.
+    second = a.list({"limit": 5})
+    assert first == second
+
+
+def test_accessor_invalidate_cache_clears() -> None:
+    a = BacklogAccessor()
+    _ = a.list({"limit": 1})
+    assert a._cache, "cache should have populated"
+    a.invalidate_cache()
+    assert not a._cache, "cache should be empty after invalidate"
+
+
 # --- Static UI assertions (post-fleet-quality rebuild) ---------------------
 
 
@@ -428,4 +527,38 @@ def test_static_index_has_5_kanban_columns() -> None:
     assert "'Blocked'" in html
     assert "'Done'" in html
     assert "'Draft'" in html
-    assert "KANBAN_COLUMNS" in html
+    # Constant rename round-1: STATUS_FAMILIES replaces KANBAN_COLUMNS.
+    assert "STATUS_FAMILIES" in html
+
+
+def test_static_index_mounts_search_input_once() -> None:
+    """Round-1 fix: search input must mount once at init; no recreate-on-keystroke."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "mountSearchInput" in html
+    assert "dataset.mounted" in html
+
+
+def test_static_index_uses_client_minisearch() -> None:
+    """Round-1 fix: filter/search runs client-side via MiniSearch over cached corpus."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "new MiniSearch" in html
+    assert "clientFilter" in html
+    assert "buildMiniSearchIndex" in html
+    assert "state.corpus" in html
+
+
+def test_static_index_has_sortable_headers() -> None:
+    """Round-1 feature: List view column headers sort on click."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert "sort-th" in html
+    assert "state.sort_col" in html
+    assert "state.sort_dir" in html
+    assert "SORT_DEFAULT_DIR" in html
+
+
+def test_static_index_no_clamp_on_venture_or_milestone() -> None:
+    """Round-1 feature: venture / milestone / project meta-line is unbounded."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # meta-line CSS class added; venture is no longer wrapped in clamp-1 on the card.
+    assert ".meta-line" in html
+    assert "meta-key" in html

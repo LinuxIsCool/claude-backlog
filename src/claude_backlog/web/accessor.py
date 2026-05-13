@@ -133,6 +133,15 @@ class BacklogAccessor:
     Mutations live in the MCP server (task_create / task_edit / task_archive
     / draft_promote / definition_of_done_defaults_upsert) per the kernel
     doctrine invariant `hard-405-on-mutations`.
+
+    In-memory cache keyed by (stage, root_mtime_signature):
+      • First call parses every task file in the stage.
+      • Subsequent calls return the cached list IF the directory's mtime
+        signature is unchanged.
+      • If any task file's mtime > cache.signature, the cache invalidates
+        and the next call re-reads. Cheaper than per-request fs scan when
+        the corpus is in the "lots of reads, occasional writes" regime
+        (which describes ~all usage today).
     """
 
     namespace = NAMESPACE
@@ -140,6 +149,38 @@ class BacklogAccessor:
 
     def __init__(self, root: Path | None = None) -> None:
         self.root = root or BACKLOG_ROOT
+        # Per-stage cache. Keys: Stage enum. Values: (signature_tuple, tasks).
+        self._cache: dict[Any, tuple[tuple, list[Task]]] = {}
+
+    # ----- caching layer ----------------------------------------------------
+
+    def _signature(self, stage: Stage) -> tuple:
+        """Return a (count, max_mtime) signature for fast cache invalidation."""
+        max_mtime = 0.0
+        count = 0
+        for p in _iter_stage_files(stage, self.root):
+            try:
+                m = p.stat().st_mtime
+            except FileNotFoundError:
+                continue
+            if m > max_mtime:
+                max_mtime = m
+            count += 1
+        return (count, max_mtime)
+
+    def _cached_tasks(self, stage: Stage) -> list[Task]:
+        """Return cached parsed Task[] for a stage, refreshing on mtime drift."""
+        sig = self._signature(stage)
+        cached = self._cache.get(stage)
+        if cached is not None and cached[0] == sig:
+            return cached[1]
+        tasks = list(list_tasks(stage, self.root))
+        self._cache[stage] = (sig, tasks)
+        return tasks
+
+    def invalidate_cache(self) -> None:
+        """Manual invalidation (test seam; not used in steady state)."""
+        self._cache.clear()
 
     # ----- 5-method Accessor Protocol surface ---------------------------
 
@@ -162,7 +203,7 @@ class BacklogAccessor:
           offset         - pagination offset (default 0)
         """
         stage = _stage_from_param(params.get("stage", "active"))
-        tasks: list[Task] = list(list_tasks(stage, self.root))
+        tasks: list[Task] = list(self._cached_tasks(stage))
 
         # Filter
         status = _strip(params.get("status"))
@@ -192,8 +233,15 @@ class BacklogAccessor:
             if venture and (not t.venture or venture.lower() not in t.venture.lower()):
                 return False
             if q:
-                hay = f"{t.title}\n{t.body}".lower()
-                if q.lower() not in hay:
+                # Match against id + title + body + tags + venture + milestone.
+                # ID is first-class so `446` surfaces task-446 even when the
+                # digits don't appear elsewhere on the card.
+                q_lc = q.lower()
+                hay = (
+                    f"{t.id}\n{t.title}\n{t.body}\n"
+                    f"{' '.join(t.tags)}\n{t.venture or ''}\n{t.milestone or ''}"
+                ).lower()
+                if q_lc not in hay:
                     return False
             if creator:
                 fm_creator = t.extra_frontmatter.get("creator_persona")
@@ -207,13 +255,11 @@ class BacklogAccessor:
 
         kept = [t for t in tasks if keep(t)]
 
-        # Sort: priority asc (critical first), then created desc (newest first)
-        kept.sort(
-            key=lambda t: (
-                _PRIORITY_RANK.get(t.priority, 99),
-                -_date_ord(t.created),
-            )
-        )
+        # Sort — honors optional `sort` param, falls back to priority+created.
+        # Accepted: priority|created|due|id|title|status_family|venture|checkbox
+        # Optional direction suffix: ":asc" / ":desc"
+        sort_param = _strip(params.get("sort"))
+        kept = _sort_tasks(kept, sort_param)
 
         # Paginate
         offset = int(params.get("offset", 0) or 0)
@@ -244,8 +290,8 @@ class BacklogAccessor:
 
     def stats(self) -> dict[str, Any]:
         """Aggregate counts across the active + drafts corpus."""
-        active = list(list_tasks(Stage.ACTIVE, self.root))
-        drafts = list(list_tasks(Stage.DRAFTS, self.root))
+        active = self._cached_tasks(Stage.ACTIVE)
+        drafts = self._cached_tasks(Stage.DRAFTS)
         by_status: dict[str, int] = {}        # raw status strings (24+ today)
         by_status_family: dict[str, int] = {}  # canonical 5 families
         by_priority: dict[str, int] = {}
@@ -309,8 +355,8 @@ class BacklogAccessor:
           }
         Values sorted by descending count; ties by name.
         """
-        tasks = list(list_tasks(Stage.ACTIVE, self.root)) + list(
-            list_tasks(Stage.DRAFTS, self.root)
+        tasks = list(self._cached_tasks(Stage.ACTIVE)) + list(
+            self._cached_tasks(Stage.DRAFTS)
         )
         raw_status: dict[str, int] = {}
         ventures: dict[str, int] = {}
@@ -353,7 +399,7 @@ class BacklogAccessor:
         }
 
     def search(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Free-text search across title + body + tags + venture + milestone.
+        """Free-text search across id + title + body + tags + venture + milestone.
 
         Returns `{query, total, results: [{...summary, excerpt, score}, ...]}`.
         Sorted by score (descending) where score = sum(weighted matches).
@@ -361,6 +407,11 @@ class BacklogAccessor:
         Server-side search runs over the corpus directly; the UI vendors
         MiniSearch for the LIVE-typing case but falls back to this endpoint
         on cold load + bulk filter.
+
+        ID matching: pure-numeric queries match the task id exactly with the
+        highest weight (10x). Numeric substrings inside larger queries match
+        with a smaller weight (2x). Both ensure `446` surfaces task-446 even
+        though the digits don't appear in title/body in any natural way.
         """
         q = _strip(params.get("q"))
         limit = int(params.get("limit", 50) or 50)
@@ -369,10 +420,24 @@ class BacklogAccessor:
         q_lower = q.lower()
         terms = [t for t in re.split(r"\s+", q_lower) if t]
         # Field weights — title hits weighed heaviest, body matches lightest.
-        FIELD_WEIGHTS = {"title": 5, "tags": 3, "venture": 2, "milestone": 2, "body": 1}
+        # ID hits dominate when the query is purely numeric (e.g., "446"),
+        # so a single-token numeric query routes directly to that task.
+        FIELD_WEIGHTS = {
+            "id_exact": 10, "id_substring": 2,
+            "title": 5, "tags": 3, "venture": 2, "milestone": 2, "body": 1,
+        }
+        # Pre-extract numeric tokens once — used for id matching.
+        numeric_tokens: list[str] = [t for t in terms if t.isdigit()]
         scored: list[tuple[float, Task]] = []
-        for t in list_tasks(Stage.ACTIVE, self.root):
+        for t in self._cached_tasks(Stage.ACTIVE):
             score = 0.0
+            id_str = str(t.id)
+            # ID matches — only fire when the user is asking for IDs.
+            for nt in numeric_tokens:
+                if id_str == nt:
+                    score += FIELD_WEIGHTS["id_exact"]
+                elif nt in id_str:
+                    score += FIELD_WEIGHTS["id_substring"]
             for term in terms:
                 if term in t.title.lower():
                     score += FIELD_WEIGHTS["title"]
@@ -406,7 +471,7 @@ class BacklogAccessor:
         since = float(params.get("since", 0) or 0)
         cutoff = date.fromtimestamp(since) if since else None
         rows = []
-        for t in list_tasks(Stage.ACTIVE, self.root):
+        for t in self._cached_tasks(Stage.ACTIVE):
             if cutoff and t.created <= cutoff:
                 continue
             rows.append(_feed_item(t))
@@ -481,6 +546,114 @@ def _coerce_task_id(item_id: str) -> int:
 def _date_ord(d: date) -> int:
     """Date as int (proleptic-Gregorian ordinal) for sort comparisons."""
     return d.toordinal()
+
+
+# Sort key extractors per column. Each returns a tuple suitable for `sorted`.
+# Default direction is "what makes sense for the column":
+#   - priority: low rank first (critical → low) for ASC; reversed for DESC
+#   - created/due: newest first for DESC
+#   - title/status_family/venture: alphabetical for ASC
+#   - id: smallest first for ASC
+#   - checkbox: highest progress first for DESC
+_SORT_EXTRACTORS: dict[str, Any] = {
+    "priority":      lambda t: _PRIORITY_RANK.get(t.priority, 99),
+    "created":       lambda t: _date_ord(t.created),
+    "due":           lambda t: _date_ord(t.due) if t.due else 10**9,
+    "id":            lambda t: t.id,
+    "title":         lambda t: (t.title or "").lower(),
+    "status_family": lambda t: _normalize_status(t.status),
+    "status":        lambda t: (t.status or "").lower(),
+    "venture":       lambda t: (t.venture or "").lower(),
+    "milestone":     lambda t: str(t.milestone or "").lower(),
+    "checkbox":      lambda t: (
+        (lambda c: (c[0] / c[1]) if c[1] else -1)(_count_checkboxes(t.body))
+    ),
+}
+
+# Default direction per column — what humans expect at first click.
+_SORT_DEFAULT_DIR: dict[str, str] = {
+    "priority":      "asc",   # critical first
+    "created":       "desc",  # newest first
+    "due":           "asc",   # soonest first
+    "id":            "asc",
+    "title":         "asc",
+    "status_family": "asc",
+    "status":        "asc",
+    "venture":       "asc",
+    "milestone":     "asc",
+    "checkbox":      "desc",  # most progress first
+}
+
+
+def _sort_tasks(tasks: list[Task], sort_param: str) -> list[Task]:
+    """Apply a `column[:direction][,column[:direction]...]` sort spec.
+
+    Empty / unknown spec falls back to (priority asc, created desc).
+    Multi-key sorts are supported via comma. Direction is per-key.
+    """
+    if not sort_param:
+        # Default ordering preserved from pre-sort behavior.
+        return sorted(
+            tasks,
+            key=lambda t: (
+                _PRIORITY_RANK.get(t.priority, 99),
+                -_date_ord(t.created),
+            ),
+        )
+    keys: list[tuple[str, str]] = []
+    for token in sort_param.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if ":" in token:
+            col, direction = token.split(":", 1)
+            col = col.strip().lower()
+            direction = direction.strip().lower()
+        else:
+            col = token.lower()
+            direction = _SORT_DEFAULT_DIR.get(col, "asc")
+        if col not in _SORT_EXTRACTORS:
+            continue
+        keys.append((col, direction))
+    if not keys:
+        return _sort_tasks(tasks, "")  # fallback
+
+    def composite(t: Task) -> tuple:
+        out = []
+        for col, direction in keys:
+            v = _SORT_EXTRACTORS[col](t)
+            if direction == "desc":
+                # Negate numeric / wrap string for reverse ordering.
+                if isinstance(v, (int, float)):
+                    v = -v
+                else:
+                    v = _ReverseStr(v)
+            out.append(v)
+        return tuple(out)
+
+    return sorted(tasks, key=composite)
+
+
+class _ReverseStr:
+    """Wrapper that reverses string ordering for desc sort keys.
+
+    sorted() can't accept reverse-on-a-per-key basis natively; this helper
+    inverts comparison so a single sorted() call handles mixed directions.
+    """
+
+    __slots__ = ("s",)
+
+    def __init__(self, s: str) -> None:
+        self.s = s
+
+    def __lt__(self, other: "_ReverseStr") -> bool:
+        return self.s > other.s
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _ReverseStr) and self.s == other.s
+
+    def __repr__(self) -> str:
+        return f"_ReverseStr({self.s!r})"
 
 
 def _count_checkboxes(body: str) -> tuple[int, int]:
