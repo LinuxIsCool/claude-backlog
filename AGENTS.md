@@ -57,7 +57,7 @@ Agents MAY rely on the stability of:
    docked as a reference by other tooling.
 
 8. **The web UI** (Phase 5.1 of task-435, parent task-442) — launched via
-   `/browser` or `python -m claude_backlog.web --port 6420`. As of Phase 5.1,
+   `/backlog-web` (legacy alias `/browser`) or `python -m claude_backlog.web --port 6420`. As of Phase 5.1,
    the public web surface is:
    - `GET /healthz` → `ok\n`
    - `GET /api/version` → `{name, version, phase}` JSON

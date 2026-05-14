@@ -11,7 +11,7 @@ Milestone-linked task management. Tasks connect to milestones, milestones live i
 - `/backlog triage` — review and prioritize open tasks
 - `/draft create <title>` — capture an unscoped idea (Phase 2 of task-435)
 - `/draft list | promote <id> | demote <id>` — manage drafts/
-- `/browser` — launch the web UI at `http://localhost:6420/` (Phase 5.1 of task-435, parent task-442). Skeleton ships 9 SPA routes; views populate sub-phase by sub-phase (5.2 → 5.6).
+- `/backlog-web` (canonical) or `/browser` (legacy alias) — launch the web UI at `http://localhost:6420/` (Mode A) or browse the Platform mount at `http://localhost:8800/backlog/` (Mode B). Phase 5.1 of task-435, parent task-442. Skeleton ships 9 SPA routes; views populate sub-phase by sub-phase (5.2 → 5.6). Mode B port shipped 2026-05-13 (mounted under claude-webui Platform alongside recordings/browser-history/demo/home/rhythms).
 
 ## MCP Server (Phase 4 of task-435)
 

@@ -1,17 +1,15 @@
 ---
-description: "Alias for /backlog-web — launches the claude-backlog web UI at http://localhost:6420/"
+description: "Launch the claude-backlog web UI at http://localhost:6420/"
 argument-hint: "[--port <N>] [--no-open] [--debug] [--stop]"
 allowed-tools: [Bash, Read]
 ---
 
-`/browser` is the legacy name for `/backlog-web` (kept for muscle memory).
-Behavior is identical — same argument parsing, same Bash launcher, same
-output contract. Going forward prefer `/backlog-web` for parity with
-peer satellite slash commands (`/recordings-web`, `/browser-history-web`,
-`/home-web`, etc.).
+The `/backlog-web` command starts the Phase 5 claude-backlog web UI in a
+background process so the kanban / list / detail / stats / network /
+embedding views are reachable from any browser on this machine.
 
-This file is a stub that delegates to the canonical command. Both names
-will continue to work until a future cleanup pass deletes this alias.
+Naming follows peer satellite convention (`/recordings-web`, `/browser-history-web`,
+`/home-web`). Legacy alias `/browser` still works.
 
 ## Parse `$ARGUMENTS`
 
@@ -57,7 +55,7 @@ Always print:
 - The URL (or `(stopped)` for `--stop`).
 - The PID running the server (or `none` if stopped).
 - The log path.
-- A reminder: `/backlog-web --stop` (or `/browser --stop`) kills the server.
+- A reminder: `/backlog-web --stop` (or legacy `/browser --stop`) kills the server.
 
 Do NOT block on the server — it runs detached. The command returns after the
 health probe succeeds.
