@@ -781,12 +781,14 @@ function toggleChipMenu(anchor, def, opts) {
   };
   menu.appendChild(el('button', {
     class: 'block w-full text-left px-2 py-1 text-xs hover:bg-surface0 rounded ' + (state[def.key] ? '' : 'text-green'),
+    dataset: { facet: def.key, value: '' },
     onclick: () => choose(''),
   }, 'all'));
   for (const opt of opts) {
     const sel = state[def.key] === opt;
     menu.appendChild(el('button', {
       class: 'block w-full text-left px-2 py-1 text-xs hover:bg-surface0 rounded ' + (sel ? 'text-green' : 'text-subtext1'),
+      dataset: { facet: def.key, value: opt },
       onclick: () => choose(opt),
     }, opt));
   }
@@ -813,6 +815,7 @@ function renderFilterChips() {
     const chip = el('div', { class: 'relative inline-block' },
       el('button', {
         class: 'chip border rounded px-2 py-1 ' + (active ? 'active' : 'border-surface0 text-subtext0'),
+        dataset: { facetTrigger: def.key },
         onclick: (e) => toggleChipMenu(e.currentTarget, def, opts),
       }, `${def.label}: ${active || 'all'}`, el('span', { class: 'ml-1 text-overlay0' }, '▾')),
     );

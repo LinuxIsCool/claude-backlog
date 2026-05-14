@@ -548,6 +548,23 @@ def test_static_index_has_filter_chip_slot() -> None:
     assert 'id="filter-chips"' in html
 
 
+def test_filter_chip_dropdown_options_carry_data_facet_and_value() -> None:
+    """Filter chip dropdown options MUST carry `data-facet` + `data-value`
+    attrs so parity captures + automation can target a specific option
+    without scraping button text. Added in v0.2.0 alongside state 06
+    (filter-priority-critical).
+
+    Sister attribute: the chip anchor button carries `data-facet-trigger`
+    so the dropdown can be opened by facet key without text matching.
+    """
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # Option buttons inside the dropdown
+    assert "dataset: { facet: def.key, value: '' }" in html
+    assert "dataset: { facet: def.key, value: opt }" in html
+    # Anchor button (the chip itself) carries the facet-trigger key
+    assert "dataset: { facetTrigger: def.key }" in html
+
+
 def test_static_index_loads_minisearch_vendor() -> None:
     """Vendor script must be loaded with a RELATIVE path (Mode B contract)."""
     html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
