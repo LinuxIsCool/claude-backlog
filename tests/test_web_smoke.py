@@ -725,6 +725,24 @@ def test_build_kernel_wires_prewarm_for_every_browser_stage(tmp_backlog) -> None
     assert Stage.ANY in cached_stages, f"prewarm missed ANY; cached: {cached_stages}"
 
 
+def test_static_index_filter_done_uses_status_family_not_raw_string() -> None:
+    """v0.2.9 bugfix: the include_done filter must compare against
+    status_family (canonical bucket), not the raw status string. A task
+    with raw status='[ARCHIVED v1]' or 'Superseded' still maps to
+    status_family='Done' but its raw status matches neither 'done' nor
+    'cancelled' — those tasks leaked into the kanban + list views when
+    include_done was off."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # Filter line must check status_family.
+    assert "t.status_family !== 'Done'" in html, (
+        "include_done filter must use status_family, not raw status string"
+    )
+    # Defensive: ensure the OLD broken pattern is gone.
+    assert "(t.status || '').toLowerCase() !== 'done' && (t.status || '').toLowerCase() !== 'cancelled'" not in html, (
+        "old raw-status filter still present — bug not fixed"
+    )
+
+
 def test_static_index_sort_age_uses_modified_at_then_created() -> None:
     """v0.2.7 sort fix: 'created' column key sorts by t.modified_at when
     present, falling back to t.created. The column LABEL is 'age' and the

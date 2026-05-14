@@ -557,8 +557,13 @@ function clientFilter() {
   let pool = state.corpus.slice();
   // include_done semantics — server already includes Done in loadCorpus;
   // filter it back out here unless flag set OR explicit Done family filter.
+  //
+  // v0.2.9 bugfix: filter by `status_family` (the canonical bucket) not the
+  // raw `status` string. Tasks with raw status="[ARCHIVED v1]", "Superseded",
+  // "Closed", etc. all map to status_family="Done" but their raw status
+  // string is neither "done" nor "cancelled" — so they leaked through.
   if (!state.include_done && state.status_family !== 'Done') {
-    pool = pool.filter((t) => (t.status || '').toLowerCase() !== 'done' && (t.status || '').toLowerCase() !== 'cancelled');
+    pool = pool.filter((t) => t.status_family !== 'Done');
   }
   // Filter chips (no q match here — q handled via MiniSearch below).
   pool = pool.filter((t) => {
