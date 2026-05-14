@@ -548,6 +548,46 @@ def test_static_index_has_filter_chip_slot() -> None:
     assert 'id="filter-chips"' in html
 
 
+def test_fixture_root_produces_deterministic_stats() -> None:
+    """F2 pin — BacklogAccessor(root=<fixture>) produces a known shape.
+
+    Validates that the parity fixture corpus at
+    ``~/.claude/local/backlog-fixture/`` lays out as exactly 1 task in
+    each of the 5 status families (To Do / In Progress / Blocked /
+    Done / Draft) with priorities critical / high / medium / low /
+    medium respectively.
+
+    Skipped when the fixture dir is absent so devs without the fixture
+    installed don't get a phantom failure. The fixture is committed-in
+    by F2 of ~/.claude/plans/2026-05-14-followups-after-checkpoint.md
+    at ~/.claude/local/backlog-fixture/.
+    """
+    fixture_root = Path("~/.claude/local/backlog-fixture").expanduser()
+    if not fixture_root.exists():
+        pytest.skip(f"fixture root {fixture_root} not installed")
+
+    a = BacklogAccessor(root=fixture_root)
+    stats = a.stats()
+
+    # 5 status families, 1 task each — drift-resilient invariant for v0.3.0
+    # fixture baseline. Drafts count separately in `by_status_family['Draft']`.
+    by_family = stats["by_status_family"]
+    assert by_family["To Do"] == 1, f"expected 1 To Do, got {by_family}"
+    assert by_family["In Progress"] == 1
+    assert by_family["Blocked"] == 1
+    assert by_family["Done"] == 1
+    assert by_family["Draft"] == 1
+
+    # 4 active priorities + 1 draft (draft folds into Draft family but its
+    # priority still rolls up to by_priority). Each active priority bucket = 1.
+    by_pri = stats["by_priority"]
+    assert by_pri.get("critical", 0) == 1
+    assert by_pri.get("high", 0) == 1
+    assert by_pri.get("low", 0) == 1
+    # medium count = 1 active (task-3) — drafts excluded from by_priority rollup
+    assert by_pri.get("medium", 0) >= 1
+
+
 def test_filter_chip_dropdown_options_carry_data_facet_and_value() -> None:
     """Filter chip dropdown options MUST carry `data-facet` + `data-value`
     attrs so parity captures + automation can target a specific option
