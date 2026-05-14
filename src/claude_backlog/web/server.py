@@ -19,7 +19,6 @@ push it into the accessor (data shape) or upstream into claude-webui
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from claude_webui import MutationCatalog, WebuiKernel
 from claude_webui.kernel import WebuiHandler
@@ -47,7 +46,6 @@ class BacklogHandler(WebuiHandler):
 
     def _dispatch_get(self) -> None:  # noqa: D401
         # Parse once — same shape the kernel uses.
-        import mimetypes
         from urllib.parse import parse_qs, unquote, urlparse
 
         parsed = urlparse(self.path)
@@ -70,36 +68,12 @@ class BacklogHandler(WebuiHandler):
                 return
             self._send_json(payload)
             return
-        # /static/<path> — satellite-supplied assets (CSS, JS, vendored libs).
-        # The kernel doesn't expose static dispatch beyond index.html, so we
-        # walk static_dir ourselves with a path-traversal guard.
-        if path.startswith("/static/"):
-            if self.static_dir is None:
-                self._send_json({"error": "no static_dir configured"}, status=500)
-                return
-            rel = path[len("/static/") :]
-            if not rel:
-                self._send_json({"error": "empty static path"}, status=404)
-                return
-            target = (self.static_dir / rel).resolve()
-            try:
-                target.relative_to(self.static_dir.resolve())
-            except ValueError:
-                self._send_json({"error": "forbidden"}, status=403)
-                return
-            if not target.is_file():
-                self._send_json({"error": f"not found: {rel}"}, status=404)
-                return
-            ctype, _ = mimetypes.guess_type(str(target))
-            if ctype is None:
-                ctype = "application/octet-stream"
-            self._send_bytes(
-                target.read_bytes(),
-                content_type=ctype,
-                cache_control="public, max-age=300",
-            )
-            return
-        # Fall through to the kernel's standard route table.
+        # /static/<path> dispatch is handled by the kernel's two-layer
+        # _serve_static (satellite static_dir → claude-webui shared
+        # fallback). Backlog's own assets (vendored MiniSearch) live in
+        # static_dir and take precedence; cross-cluster shared assets
+        # like `embedded-bar.js` resolve via the shared fallback. No
+        # per-satellite static override needed.
         super()._dispatch_get()
 
 

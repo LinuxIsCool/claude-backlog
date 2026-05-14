@@ -700,6 +700,20 @@ def test_static_index_has_sse_event_source() -> None:
     assert "POLL_INTERVAL_MS" in html
 
 
+def test_static_index_loads_hub_bar() -> None:
+    """The kernel-default hub-bar (claude-webui shared static
+    ``embedded-bar.js``) must be referenced from the satellite index so
+    Mode B mounts get a "← Legion Webui Hub" backlink. Path is RELATIVE
+    so the two-layer kernel static dispatcher resolves it correctly
+    (Layer 1: backlog static_dir — no match; Layer 2: claude-webui
+    shared static_dir — match → serve).
+    """
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'src="static/embedded-bar.js"' in html
+    # Guard against regression to root-absolute form.
+    assert 'src="/static/embedded-bar.js"' not in html
+
+
 def test_static_index_uses_relative_fetch_paths() -> None:
     """Mode B compatibility — claude-webui/CLAUDE.md §"Satellite fetch-URL
     contract" requires no root-absolute fetch/EventSource/script-src for

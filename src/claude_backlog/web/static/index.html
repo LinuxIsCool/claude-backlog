@@ -19,6 +19,11 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Relative path — resolves against doc base. Mode A: '/' → '/static/...'; Mode B: '/backlog/' → '/backlog/static/...'. -->
   <script src="static/vendor/minisearch-7.2.0.js"></script>
+  <!-- Hub-bar (kernel-default shared asset, served via two-layer static
+       fallback — resolves to claude-webui/web/static/embedded-bar.js).
+       Self-injects "← Legion Webui Hub" backlink when mounted under
+       claude-webui Platform (Mode B). No-op in Mode A standalone. -->
+  <script src="static/embedded-bar.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
