@@ -590,6 +590,13 @@ class BacklogAccessor:
         )
         body["active_count"] = count
         body["sample_parses"] = sample_ok
+        # Home-card metric block (Pattern C parity with recordings/bh
+        # satellites — claude-home renders `stats.key_metric` +
+        # `stats.key_metric_label` per _HOME_REGISTRY_META entry).
+        body["stats"] = {
+            "key_metric": count,
+            "key_metric_label": "tasks",
+        }
         return body
 
 

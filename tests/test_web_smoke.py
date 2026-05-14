@@ -549,8 +549,12 @@ def test_static_index_has_filter_chip_slot() -> None:
 
 
 def test_static_index_loads_minisearch_vendor() -> None:
+    """Vendor script must be loaded with a RELATIVE path (Mode B contract)."""
     html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-    assert "/static/vendor/minisearch-" in html
+    # Relative form (resolves against doc base; Mode A and Mode B safe).
+    assert "static/vendor/minisearch-" in html
+    # Guard against regression to root-absolute form.
+    assert 'src="/static/vendor/minisearch-' not in html
     assert (STATIC_DIR / "vendor").exists()
     vendored = list((STATIC_DIR / "vendor").glob("minisearch-*.js"))
     assert len(vendored) >= 1
@@ -674,17 +678,43 @@ def test_static_index_default_sort_is_newest_first() -> None:
 
 
 def test_static_index_has_sse_event_source() -> None:
-    """v0.2.6 (R2/R3): browser subscribes to /api/events via EventSource for
+    """v0.2.6 (R2/R3): browser subscribes to api/events via EventSource for
     real-time push, with polling as the safety net. Stops EventSource on
-    beforeunload to avoid leaked connections."""
+    beforeunload to avoid leaked connections.
+
+    Path is RELATIVE (no leading slash) so the satellite works in Mode A
+    (doc '/' → '/api/events') and Mode B (doc '/backlog/' →
+    '/backlog/api/events') without relying on Platform Referer fallback.
+    See claude-webui/CLAUDE.md §"Satellite fetch-URL contract".
+    """
     html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-    assert "new EventSource('/api/events')" in html
+    # Mode-B-safe: relative path resolved via new URL(...).
+    assert "new EventSource(new URL('api/events'" in html
+    # Guard against regression to root-absolute form.
+    assert "new EventSource('/api/events')" not in html
     assert "addEventListener('corpus-changed'" in html
     assert "addEventListener('connected'" in html
     # Cleanup on tab close.
     assert "beforeunload" in html
     # Fallback poll still runs (longer interval when SSE active).
     assert "POLL_INTERVAL_MS" in html
+
+
+def test_static_index_uses_relative_fetch_paths() -> None:
+    """Mode B compatibility — claude-webui/CLAUDE.md §"Satellite fetch-URL
+    contract" requires no root-absolute fetch/EventSource/script-src for
+    same-origin resources. Catch regressions before they hit Platform.
+    """
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # The api() helper strips a leading slash defensively — but the
+    # canonical mutation site and the SSE site must be written relative.
+    assert "fetch('api/mutate'" in html
+    assert "fetch('/api/mutate'" not in html
+    # Static script src must be relative too.
+    assert 'src="static/vendor/minisearch' in html
+    assert 'src="/static/vendor/minisearch' not in html
+    # api() helper has the leading-slash strip in place.
+    assert "path.startsWith('/') ? path.slice(1) : path" in html
 
 
 def test_build_kernel_wires_signature_fn_and_watch_paths(tmp_backlog) -> None:
@@ -777,9 +807,10 @@ def test_static_index_has_drag_and_drop_kanban() -> None:
     assert "dropTarget:" in html
     assert "ondrop:" in html
     assert "handleKanbanDrop(" in html
-    # Helper
+    # Helper — Mode-B-safe (relative path, no leading slash).
     assert "async function postMutation(" in html
-    assert "fetch('/api/mutate'" in html
+    assert "fetch('api/mutate'" in html
+    assert "fetch('/api/mutate'" not in html
     assert "X-Persona-Slug" in html
     # Idempotency
     assert "idempotency_key" in html
