@@ -31,12 +31,17 @@ import json
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 # Make claude_backlog importable when invoked directly via `uv run` against
 # this script (no editable install needed for the runtime path).
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Sibling-script imports (fractal_fk lives next to this file).
+sys.path.insert(0, str(Path(__file__).parent))
 
 from mcp.server.fastmcp import FastMCP
+
+from fractal_fk import FractalFKValidator  # noqa: E402
 
 from claude_backlog import (
     BACKLOG_ROOT,
@@ -126,6 +131,35 @@ def _matches(t: Task, *, status: str | None, priority: str | None,
     if milestone is not None and str(t.milestone) != str(milestone):
         return False
     return True
+
+
+# --- fractal FK validator ---------------------------------------------------
+# Phase 1 of task-416: tasks may declare a parent venture/project/milestone
+# via composite-slug FK. The validator checks the claude-ventures filesystem
+# layout at ~/.claude/local/ventures/. Mirrors the TS FKValidator in
+# claude-ventures/src/validation/fk.ts.
+
+
+VENTURES_ROOT = Path.home() / ".claude" / "local" / "ventures"
+_FK_VALIDATOR = FractalFKValidator(VENTURES_ROOT)
+
+
+def _validate_fk(parent_id: str | None, parent_type: str | None) -> str | None:
+    """Validate (parent_id, parent_type) tuple. Returns None on success or
+    when both fields are absent. Returns an error message string on rejection.
+
+    Both fields must be present together — partial FKs are rejected.
+    """
+    if not parent_id and not parent_type:
+        return None
+    if parent_id and not parent_type:
+        return "parent_id given without parent_type"
+    if parent_type and not parent_id:
+        return "parent_type given without parent_id"
+    fk = _FK_VALIDATOR.resolve(parent_id, parent_type)
+    if not fk.ok:
+        return f"FK rejected: {fk.error}"
+    return None
 
 
 # --- resource ---------------------------------------------------------------
@@ -304,6 +338,8 @@ async def task_create(
     disable_dod_defaults: bool = False,
     extra_definition_of_done: list[str] | None = None,
     body: str | None = None,
+    parent_id: str | None = None,
+    parent_type: str | None = None,
 ) -> str:
     """Create a new task. Inherits DoD from config.yml by default.
 
@@ -325,9 +361,24 @@ async def task_create(
         extra_definition_of_done: Additional DoD items appended after defaults.
         body: Optional raw markdown body. If omitted, an AC + DoD scaffold
             is generated.
+        parent_id: Composite slug FK to a venture / project / milestone in
+            claude-ventures (e.g. ``"bcrg.tbff.m1-spec"``). Must be paired
+            with ``parent_type``. Validated against the filesystem layout at
+            ``~/.claude/local/ventures/`` — unresolved FKs are rejected.
+        parent_type: One of ``venture``, ``project``, ``milestone``. Must
+            match the level of ``parent_id`` (1 / 2 / 3 dot-separated segs).
 
     Returns the created task ID and path.
     """
+    # Phase 1 of task-416: filesystem-checked FK to claude-ventures.
+    fk_err = _validate_fk(parent_id, parent_type)
+    if fk_err is not None:
+        return _error_payload(BacklogToolError(
+            ErrorCode.VALIDATION_ERROR,
+            fk_err,
+            context={"parent_id": parent_id, "parent_type": parent_type},
+        ))
+
     try:
         cfg = load_config()
     except BacklogToolError as exc:
@@ -356,6 +407,15 @@ async def task_create(
             sections.append("")
         body = "\n".join(sections)
 
+    # Carry parent_id + parent_type via extra_frontmatter so they round-trip
+    # to disk even though Task uses extra="ignore" — additive doctrine: the
+    # cross-cutting venture FK is observed by the venture writeback, not part
+    # of the typed Task schema.
+    extra_fm: dict[str, Any] = {}
+    if parent_id:
+        extra_fm["parent_id"] = parent_id
+        extra_fm["parent_type"] = parent_type
+
     try:
         task = Task(
             id=new_id,
@@ -374,6 +434,7 @@ async def task_create(
             modified_files=modified_files or [],
             definition_of_done=dod,
             body=body,
+            extra_frontmatter=extra_fm,
         )
     except Exception as exc:  # pydantic ValidationError or similar
         return _error_payload(BacklogToolError(
@@ -415,6 +476,8 @@ async def task_edit(
     check_dod: list[int] | None = None,
     uncheck_dod: list[int] | None = None,
     append_body: str | None = None,
+    parent_id: str | None = None,
+    parent_type: str | None = None,
 ) -> str:
     """Edit an existing task.
 
@@ -426,7 +489,21 @@ async def task_edit(
 
     `append_body` adds the text to the end of the body, separated by a
     blank line. Useful for progress notes.
+
+    ``parent_id`` + ``parent_type`` set or change the venture/project/milestone
+    FK; both must be provided together and must resolve against the
+    claude-ventures filesystem layout. See ``task_create`` for the schema.
     """
+    # Phase 1 of task-416: validate FK before mutating the file.
+    if parent_id is not None or parent_type is not None:
+        fk_err = _validate_fk(parent_id, parent_type)
+        if fk_err is not None:
+            return _error_payload(BacklogToolError(
+                ErrorCode.VALIDATION_ERROR,
+                fk_err,
+                context={"parent_id": parent_id, "parent_type": parent_type},
+            ))
+
     path = find_task(task_id, Stage.ANY)
     if path is None:
         return _error_payload(BacklogToolError(
@@ -438,6 +515,13 @@ async def task_edit(
         task = read_task(path)
     except BacklogToolError as exc:
         return _error_payload(exc)
+
+    # Carry parent_id / parent_type via extra_frontmatter (additive doctrine).
+    if parent_id is not None and parent_type is not None:
+        new_extra = dict(task.extra_frontmatter)
+        new_extra["parent_id"] = parent_id
+        new_extra["parent_type"] = parent_type
+        task = task.model_copy(update={"extra_frontmatter": new_extra})
 
     updates: dict = {}
     if title is not None:
