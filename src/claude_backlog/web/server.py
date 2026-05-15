@@ -142,7 +142,7 @@ def build_kernel(
     # without leaving the backlog tree. The catalog is empty until the
     # mutations module registers its handlers below.
     audit_dir = backlog_root / "mutations"
-    mutation_catalog = MutationCatalog(audit_dir=audit_dir, timeout_s=5.0)
+    mutation_catalog = MutationCatalog(audit_dir=audit_dir, timeout_s=5.0, paradigm="crud")
     register_handlers(mutation_catalog)
 
     # Pre-warm the accessor cache on kernel startup so the first browser

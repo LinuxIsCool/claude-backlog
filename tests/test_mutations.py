@@ -64,7 +64,7 @@ def populated_backlog(tmp_backlog: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
 def catalog(tmp_path: Path) -> MutationCatalog:
     audit = tmp_path / "audit"
     audit.mkdir()
-    cat = MutationCatalog(audit_dir=audit, timeout_s=3.0)
+    cat = MutationCatalog(audit_dir=audit, timeout_s=3.0, paradigm="crud")
     register_handlers(cat)
     return cat
 
