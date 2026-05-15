@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from mcp.server.fastmcp import FastMCP
 
-from fractal_fk import FractalFKValidator  # noqa: E402
+from fractal_fk import FractalFKValidator  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 from claude_backlog import (
     BACKLOG_ROOT,

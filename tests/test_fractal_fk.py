@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from fractal_fk import FractalFKValidator, FKResult  # noqa: E402
+from fractal_fk import FractalFKValidator  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 
 @pytest.fixture
