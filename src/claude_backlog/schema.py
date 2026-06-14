@@ -140,6 +140,17 @@ class Task(BaseModel):
                 return int(m.group(1))
         return v  # let Pydantic surface the error if still wrong
 
+    @field_validator("tags", "documentation", "modified_files", mode="before")
+    @classmethod
+    def _coerce_str_list(cls, v: Any) -> Any:
+        """Coerce list items to str. A bare YAML int (e.g. doctrine tag `332`
+        written `- 332` instead of `- "332"`) must NOT fail the whole task and
+        blank every list/stats/facets/feed view. Bound pillar — one bad record
+        degrades to one coerced value, never a dead mount."""
+        if isinstance(v, list):
+            return [str(x) if isinstance(x, (int, float)) else x for x in v if x is not None]
+        return v
+
     # --- Canonical optional ---
     milestone: str | int | None = None
     tags: list[str] = Field(default_factory=list)
