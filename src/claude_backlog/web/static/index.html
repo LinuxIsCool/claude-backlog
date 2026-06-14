@@ -994,8 +994,7 @@ function renderTaskCard(t) {
     t.tags && t.tags.length
       ? el('div', { class: 'flex flex-wrap gap-1 mb-1.5' },
           ...t.tags.slice(0, TAG_CHIPS_PER_CARD).map(tag => el('span', {
-            class: 'tag-chip cursor-pointer hover:text-green',
-            onclick: (e) => { e.stopPropagation(); state.tag = state.tag === tag ? '' : tag; pushUrlState(); renderView(); },
+            class: 'tag-chip',
           }, tag)),
           t.tags.length > TAG_CHIPS_PER_CARD ? el('span', { class: 'tag-chip text-overlay0' }, `+${t.tags.length - TAG_CHIPS_PER_CARD}`) : null,
         )
