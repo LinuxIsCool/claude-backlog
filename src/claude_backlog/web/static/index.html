@@ -1327,6 +1327,89 @@ function renderAbout() {
 /* ═══════════════════════════════════════════════════════════════════════
  * Detail panel
  * ═══════════════════════════════════════════════════════════════════════ */
+/* mdInline — parse inline markdown (code span, bold, italic, link) into an
+   array of DOM nodes. Code spans are matched first so ** inside `...` stays
+   literal. Every leaf is a text node via el()/createTextNode — no innerHTML. */
+function mdInline(text) {
+  const out = [];
+  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(\[[^\]]+\]\([^)]+\))/g;
+  let m, last = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    const tok = m[0];
+    if (tok.startsWith('`')) out.push(el('code', { class: 'bg-surface0 px-1 rounded text-[0.68rem]' }, tok.slice(1, -1)));
+    else if (tok.startsWith('**')) out.push(el('strong', { class: 'font-semibold text-text' }, ...mdInline(tok.slice(2, -2))));
+    else if (tok.startsWith('*')) out.push(el('em', { class: 'italic' }, ...mdInline(tok.slice(1, -1))));
+    else {
+      const mm = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(tok);
+      // Scheme allowlist — reject javascript:/data:/vbscript: etc. so a
+      // crafted link in a task body can't execute on click. Non-allowlisted
+      // schemes render as inert text instead of a live href.
+      const url = (mm[2] || '').trim();
+      if (/^(https?:|mailto:|\/|#)/i.test(url)) {
+        out.push(el('a', { href: url, class: 'underline break-all text-blue', target: '_blank', rel: 'noopener' }, mm[1]));
+      } else {
+        out.push(mm[1]);
+      }
+    }
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+/* renderMarkdown — dependency-free Markdown → DOM for the detail body.
+   Covers the subset task bodies use: ATX headings, fenced + inline code,
+   ordered/unordered lists, blockquotes, bold/italic/links, paragraphs.
+   Builds real elements (textContent leaves) — honors the kernel
+   "textContent not innerHTML" XSS doctrine without a vendored lib. */
+function renderMarkdown(md) {
+  const lines = String(md || '').replace(/\r\n/g, '\n').split('\n');
+  const HSIZE = { 1: 'text-sm', 2: 'text-[0.8rem]', 3: 'text-[0.75rem]', 4: 'text-[0.72rem]', 5: 'text-[0.72rem]', 6: 'text-[0.72rem]' };
+  const blocks = [];
+  let i = 0;
+  const isBlockStart = (l) => /^```/.test(l) || /^#{1,6}\s/.test(l) || /^>\s?/.test(l) || /^\s*[-*]\s+/.test(l) || /^\s*\d+\.\s+/.test(l);
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^```/.test(line)) {
+      const buf = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) { buf.push(lines[i]); i++; }
+      i++; // closing fence
+      blocks.push(el('pre', { class: 'bg-surface0 rounded p-2 my-2 overflow-x-auto text-[0.68rem] text-subtext1' }, el('code', null, buf.join('\n'))));
+      continue;
+    }
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      blocks.push(el('div', { class: `${HSIZE[h[1].length]} font-semibold text-text mt-3 mb-1` }, ...mdInline(h[2])));
+      i++; continue;
+    }
+    if (/^>\s?/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, '')); i++; }
+      blocks.push(el('blockquote', { class: 'border-l-2 border-surface1 pl-2 my-1 italic text-overlay1' }, ...mdInline(buf.join(' '))));
+      continue;
+    }
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { items.push(el('li', null, ...mdInline(lines[i].replace(/^\s*[-*]\s+/, '')))); i++; }
+      blocks.push(el('ul', { class: 'list-disc pl-5 my-1 space-y-0.5' }, ...items));
+      continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { items.push(el('li', null, ...mdInline(lines[i].replace(/^\s*\d+\.\s+/, '')))); i++; }
+      blocks.push(el('ol', { class: 'list-decimal pl-5 my-1 space-y-0.5' }, ...items));
+      continue;
+    }
+    if (/^\s*$/.test(line)) { i++; continue; }
+    const para = [];
+    while (i < lines.length && !/^\s*$/.test(lines[i]) && !isBlockStart(lines[i])) { para.push(lines[i]); i++; }
+    blocks.push(el('p', { class: 'my-1' }, ...mdInline(para.join(' '))));
+  }
+  return blocks;
+}
+
 async function renderDetail() {
   const slot = $('#detail-slot');
   clear(slot);
@@ -1373,8 +1456,8 @@ async function renderDetail() {
   if ((t.blocks     || []).length) meta.appendChild(el('div', null, el('span', { class: 'text-overlay0' }, 'blocks · '),  (t.blocks     || []).map(String).join(', ')));
   slot.appendChild(meta);
   slot.appendChild(el('div', {
-    class: 'text-[0.7rem] text-subtext1 whitespace-pre-wrap leading-relaxed border-t border-surface0 pt-3 max-h-[500px] overflow-y-auto',
-  }, ...buildExcerpt(t.body || '', state.q)));
+    class: 'text-[0.72rem] text-subtext1 leading-relaxed border-t border-surface0 pt-3 max-h-[500px] overflow-y-auto',
+  }, ...renderMarkdown(t.body || '')));
   if (t.path) slot.appendChild(el('div', { class: 'text-[0.6rem] text-overlay0 mt-3 font-mono break-all' }, t.path));
 }
 
