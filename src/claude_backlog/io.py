@@ -70,6 +70,12 @@ class Stage(str, Enum):
 
 _TASK_RE = re.compile(r"^task-(\d+)(?:\s*-\s*(.*))?\.md$")
 
+# Legacy convention: 150 files in the live corpus are named `NNN-slug.md`
+# with no `task-` prefix. A date-prefixed name (`2026-04-27-...`) must NOT
+# match, so the ID is bounded to four digits and rejected when followed by
+# a second `-NN-` group that looks like a month.
+_LEGACY_TASK_RE = re.compile(r"^(\d{1,4})\s*-\s*(?!\d{2}-\d{2})(.*)\.md$")
+
 _SLUG_MAX = 60
 
 
@@ -308,11 +314,42 @@ def _iter_stage_files(stage: Stage, root: Path | None = None) -> Iterator[Path]:
             yield p
 
 
+def _iter_all_markdown(root: Path | None = None) -> Iterator[Path]:
+    """Yield every .md file across active + drafts + archive.
+
+    Deliberately broader than _iter_stage_files (which globs `task-*.md`)
+    because ID allocation must consider every file that claims an ID,
+    regardless of naming convention.
+    """
+    r = root or BACKLOG_ROOT
+    for sub in (Stage.ACTIVE, Stage.DRAFTS, Stage.ARCHIVE):
+        d = sub.dir(r)
+        if not d.exists():
+            continue
+        for p in sorted(d.glob("*.md")):
+            if p.is_file():
+                yield p
+
+
+def parse_any_task_filename(name: str) -> tuple[int, str | None] | None:
+    """Return (id, slug) for any known filename convention, else None."""
+    m = _TASK_RE.match(name)
+    if m:
+        return int(m.group(1)), m.group(2)
+    m = _LEGACY_TASK_RE.match(name)
+    if m:
+        return int(m.group(1)), m.group(2)
+    return None
+
+
 def scan_ids(root: Path | None = None) -> set[int]:
-    """Return the set of integer IDs across active + drafts + archive."""
+    """Return the set of integer IDs across active + drafts + archive.
+
+    Covers every filename convention in the corpus, not only `task-*.md`.
+    """
     out: set[int] = set()
-    for p in _iter_stage_files(Stage.ANY, root):
-        parsed = _parse_task_filename(p.name)
+    for p in _iter_all_markdown(root):
+        parsed = parse_any_task_filename(p.name)
         if parsed is not None:
             out.add(parsed[0])
     return out
