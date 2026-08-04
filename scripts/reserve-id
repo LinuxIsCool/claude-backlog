@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Reserve task IDs under the claude-backlog fcntl lock.
+
+The only sanctioned way to obtain a new task ID. Prints one ID per line.
+
+Never compute `max(ids) + 1` from a filename scan: it is not atomic, and
+doing so across concurrent sessions produced 39 duplicated IDs in the live
+corpus before reserve_id() existed.
+
+Usage:
+    reserve-id            # one ID
+    reserve-id --count 5  # five IDs, ascending
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from claude_backlog.io import reserve_id  # noqa: E402
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Reserve task IDs atomically.")
+    parser.add_argument("--count", type=int, default=1, help="how many IDs to reserve")
+    args = parser.parse_args()
+
+    if args.count < 1:
+        print("--count must be >= 1", file=sys.stderr)
+        return 2
+
+    for _ in range(args.count):
+        print(reserve_id())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
