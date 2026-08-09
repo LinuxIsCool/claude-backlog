@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "app": "backlog",
+  "destinations": [
+    {"id": "kanban", "label": "Kanban", "href": "/backlog/?view=kanban", "aliases": ["board"], "keywords": ["tasks", "cards"]},
+    {"id": "list", "label": "List", "href": "/backlog/?view=list", "keywords": ["tasks", "table"]},
+    {"id": "stats", "label": "Stats", "href": "/backlog/?view=stats"},
+    {"id": "about", "label": "About", "href": "/backlog/?view=about", "aliases": ["help"]}
+  ]
+}
