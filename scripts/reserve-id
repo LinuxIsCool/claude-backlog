@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Atomically reserve one or more backlog task IDs.
+
+The only sanctioned source of new task IDs. Scanning filenames and computing
+``max + 1`` is not atomic and produced 39 duplicated IDs in this corpus before
+this allocator existed.
+
+Usage::
+
+    reserve-id [ROOT] [--count N]
+
+ROOT defaults to ``~/.claude/local/backlog``. Prints one ID per line under an
+exclusive lock held across the whole read-increment-write cycle.
+
+The corpus is scanned exactly once, to seed the counter when it does not yet
+exist. After that the counter file is authoritative: a task file that is
+deleted, archived, or renamed can never hand its ID to a new task.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import os
+import re
+import sys
+from pathlib import Path
+
+DEFAULT_ROOT = Path.home() / ".claude" / "local" / "backlog"
+COUNTER_NAME = ".next_id_counter"
+LOCK_NAME = ".next_id.lock"
+
+# ``task-4175 - slug.md`` and the legacy ``236-slug.md`` shape both count.
+_FILENAME_ID = re.compile(r"^(?:task-)?(\d+)\b")
+# ``id: 4175`` / ``id: "4175"`` inside frontmatter.
+_FRONTMATTER_ID = re.compile(r"^id:\s*['\"]?(\d+)", re.MULTILINE)
+
+
+def _seed_from_corpus(root: Path) -> int:
+    """Highest ID observed anywhere in the corpus, plus one.
+
+    Runs only when the counter is absent. Reads both the filename and the
+    frontmatter because the two disagree across the legacy corpus, and a seed
+    that trusts only one of them would re-issue live IDs.
+    """
+    highest = 0
+    for path in root.glob("*.md"):
+        match = _FILENAME_ID.match(path.name)
+        if match:
+            highest = max(highest, int(match.group(1)))
+        try:
+            head = path.read_text(encoding="utf-8", errors="replace")[:4096]
+        except OSError:
+            continue
+        for found in _FRONTMATTER_ID.finditer(head):
+            highest = max(highest, int(found.group(1)))
+    return highest + 1
+
+
+def reserve(root: Path, count: int) -> list[int]:
+    root.mkdir(parents=True, exist_ok=True)
+    counter = root / COUNTER_NAME
+    lock = root / LOCK_NAME
+
+    # Lock a dedicated file rather than the counter: the counter is rewritten
+    # atomically via rename, so a lock held on it would not survive the swap.
+    with open(lock, "a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            raw = counter.read_text(encoding="utf-8").strip() if counter.exists() else ""
+            next_id = int(raw) if raw.isdigit() else _seed_from_corpus(root)
+
+            ids = list(range(next_id, next_id + count))
+
+            tmp = counter.with_suffix(".tmp")
+            tmp.write_text(f"{ids[-1] + 1}\n", encoding="utf-8")
+            os.replace(tmp, counter)
+            return ids
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", nargs="?", default=str(DEFAULT_ROOT))
+    parser.add_argument("--count", type=int, default=1)
+    args = parser.parse_args(argv)
+
+    if args.count < 1:
+        parser.error("--count must be at least 1")
+
+    for task_id in reserve(Path(args.root).expanduser(), args.count):
+        print(task_id)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

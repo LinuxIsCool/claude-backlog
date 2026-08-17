@@ -1,0 +1,2694 @@
+{
+  "contested_filename_ids": {
+    "232": [
+      "232-pi-secrets-extension.md",
+      "232-system-stability-firefox-profile-recovery.md"
+    ],
+    "234": [
+      "234-claude-quartz-mission-vision-values-roadmap.md",
+      "234-shared-model-catalog-schema.md"
+    ],
+    "247": [
+      "247-legion-enrichment-plan-unified.md",
+      "247-route-all-plugins-through-claude-llms.md"
+    ],
+    "304": [
+      "304-legion-cognitive-stack-webapp-kg-temporal-spine.md",
+      "304-ontology-first-agents-autonomous-query-harness-holonic-stewards.md"
+    ],
+    "312": [
+      "312-transcription-diarization-knowledge-pipeline-restoration.md",
+      "312-voice-cloning-vision-roadmap.md"
+    ],
+    "314": [
+      "314-slack-sync-coverage-gap.md",
+      "314-telus-env-map-yaml-driven.md"
+    ],
+    "315": [
+      "315-regen-ai-execution-vision-and-roadmap.md",
+      "315-voice-arbiter-playing-msg-watchdog.md"
+    ],
+    "333": [
+      "333-claude-signals-sovereign-notification-and-crash-forensics.md",
+      "333-legion-pattern-library.md"
+    ],
+    "340": [
+      "340-claude-claude-web-plugin-vision.md",
+      "340-legion-epistemic-hygiene-doctrine.md"
+    ],
+    "341": [
+      "341-claude-claude-web-checkpoint-fixes.md",
+      "341-claude-pi-and-legion-pi-platform-vision.md"
+    ],
+    "345": [
+      "345-claude-code-oss-private-local-optimization-vision.md",
+      "345-fix-telus-chat-model-catalog-loading-and-tpf-failure-propagation.md"
+    ],
+    "346": [
+      "346-agent-c-claude-code-oss-private-local-platform-execution-plan.md",
+      "346-qwen-endpoint-harness-and-live-baseline-agent-b.md"
+    ],
+    "402": [
+      "402-commitment-extraction-research-synthesis.md",
+      "task-402 - claude-youtube-minisearch-realtime-research-browser-plan.md"
+    ],
+    "403": [
+      "403-hippo-data-quality-pipeline.md",
+      "task-403 - hermes-gemma-health-gated-integration-roadmap.md"
+    ],
+    "404": [
+      "404-claude-frontend-primitives-readiness.md",
+      "task-404 - legion-unified-llm-stack-and-agent-runtime-orchestration.md"
+    ],
+    "405": [
+      "405-legion-lens-platform-forked-turborepo-substrate.md",
+      "task-405 - telus-model-harness-verification-and-config-sync.md"
+    ],
+    "4111": [
+      "task-4111 - legion-wide-data-practices-audit.md",
+      "task-4111 - scratchpad-webui-enrichment-markdown-types-tags-harvest.md"
+    ],
+    "4132": [
+      "task-4132 - claude-logging-webui-intelligence-layer.md",
+      "task-4132 - legion-24-7-autonomy-tiered-model-router-gated-propose-only.md"
+    ],
+    "4133": [
+      "task-4133 - claude-journal-webui.md",
+      "task-4133 - temporal-ontological-kg-lenses-over-history-per-actor-goal-s.md"
+    ],
+    "4175": [
+      "task-4175 - claude-media-universal-decades-long-personal-media-library-vision.md",
+      "task-4175 - ventures-weekly-focus-and-selected-venture-task-workbench.md"
+    ],
+    "419": [
+      "419-legion-proprioception-and-inventory-webapp.md",
+      "task-419-alife-cadcad-proposal-14-section-draft.md"
+    ],
+    "420": [
+      "420-legion-full-spectrum-inventory-umbrella.md",
+      "task-420-legion-hud-tiithluup-fork-architecture.md"
+    ],
+    "421": [
+      "421-inventory-historical-mining.md",
+      "task-421-embed-backfill-asyncio-hang-py313.md"
+    ],
+    "422": [
+      "422-inventory-software-assets.md",
+      "task-422-scratchpad-invisible-to-rhythms.md"
+    ],
+    "423": [
+      "423-inventory-data-platforms.md",
+      "task-423-tmux-stream-aggregation-cluster.md"
+    ],
+    "424": [
+      "424-inventory-code-assets.md",
+      "task-424-closure-machine-perspective-rhythm.md"
+    ],
+    "425": [
+      "425-inventory-llm-and-intelligence.md",
+      "task-425 - claude-youtube-fetch-pipeline-observability.md"
+    ],
+    "426": [
+      "426-inventory-relations-people-orgs-ventures-communities.md",
+      "task-426 - claude-fdg-phase-2-second-prototype-and-first-comparison.md"
+    ],
+    "427": [
+      "427-inventory-webapp-v01-stub.md",
+      "task-427 - claude-fdg-phase-3-third-prototype-or-isolation-spike.md"
+    ],
+    "428": [
+      "428-marker-skill-resilience.md",
+      "task-428 - claude-fdg-phase-4-edges-and-layout-location-isolation.md"
+    ],
+    "508": [
+      "task-508 - claude-logging-v2-modernization-sacred-plugin-rebuild.md",
+      "task-508-claude-ventures-webui.md",
+      "task-508-phase-1.md"
+    ],
+    "509": [
+      "task-509 - claude-md-update-disable-claude-dialog.md",
+      "task-509 - claude-notion-v0-2-wire-full-write-edit-operations-behind-ap.md"
+    ],
+    "510": [
+      "task-510 - claude-notion-multi-org-reality-check-re-auth-other-notion-w.md",
+      "task-510 - register-recording-py-uses-utc-for-date-recorded-987-recordi.md"
+    ],
+    "511": [
+      "task-511 - claude-notion-legion-claude-notion-koi-sensor-traversal-base.md",
+      "task-511 - claude-voice-loud-failures-resilience-bundle.md"
+    ],
+    "512": [
+      "task-512 - claude-notion-public-release-via-plugin-dist.md",
+      "task-512 - recordings-v2-wiki-of-self-vision-and-roadmap.md"
+    ],
+    "520": [
+      "520-legion-brain-large-file-history-purge.md",
+      "task-520 - telus-embedding-endpoints-degraded-e5-503-llama32-403-blocks-subprojects-c-f-g.md",
+      "task-520 - voice-atomic-write-flag-files.md"
+    ],
+    "521": [
+      "task-521 - bridge-to-hippo-and-session-capture-two-bug-fix-stop-creating-43k-orphan-person-nodes.md",
+      "task-521 - legion-brain-large-file-backup-architecture.md",
+      "task-521 - voice-portability-protocols-audiobackend-ttsengine-sttengine-attentioncontext.md"
+    ],
+    "522": [
+      "task-522 - rhythm-nightly-integration-script-times-out-90min-add-fallback-timeout-cancel.md",
+      "task-522 - voice-4-tier-tts-fallback-ladder.md"
+    ],
+    "560": [
+      "task-560 - claude-tmux-webui-fractal-visualizer.md",
+      "task-560 - koi-statusline-section.md"
+    ]
+  },
+  "contested_frontmatter_ids": {
+    "104": [
+      "add-voice-blocks-to-persona-yamls.md",
+      "task-104 - matrix-simple-send-mechanism.md"
+    ],
+    "105": [
+      "persona-mapped-tts.md",
+      "task-105 - port-memory-extraction-hook.md"
+    ],
+    "200": [
+      "fix-signal-mention-resolution.md",
+      "task-200-thousand-rhythm-ecosystem-vision.md"
+    ],
+    "201": [
+      "task-201-youtube-transcript-processing-knowledge-synthesis-pipeline.md",
+      "two-matt-agent-orchestration.md"
+    ],
+    "202": [
+      "task-202-dock-store-health-repo-knowledge-ingestion-pipeline.md",
+      "voice-tmux-targeting-and-queue.md"
+    ],
+    "203": [
+      "task-203-supervised-continuous-autonomy-kernel-vision.md",
+      "voice-health-graceful-degradation.md"
+    ],
+    "204": [
+      "prompts-inference-sync-pipeline.md",
+      "task-204-supervised-autonomy-phase-0-doctrine-inventory-plan.md"
+    ],
+    "205": [
+      "model-backend-evaluation.md",
+      "task-205-legion-compiled-knowledge-layer-vision.md"
+    ],
+    "206": [
+      "legion-temporal-observatory.md",
+      "task-206-legion-compiled-knowledge-layer-phase-0-plan.md"
+    ],
+    "207": [
+      "meta-roadmap-april-week1.md",
+      "task-207-telus-three-model-disposable-write-edit-gate.md"
+    ],
+    "208": [
+      "claude-emoji-universal-language.md",
+      "task-208-telus-three-model-failure-recovery-rollback-gate.md"
+    ],
+    "209": [
+      "agent-role-system.md",
+      "task-209-claude-llms-adapter-phase-0-plan.md"
+    ],
+    "210": [
+      "claude-org-plugin.md",
+      "task-210-telus-three-model-disposable-real-code-dry-run.md"
+    ],
+    "211": [
+      "emoji-integration-across-all-systems.md",
+      "task-211-legion-compiled-knowledge-layer-phase-2-cli-plan.md"
+    ],
+    "212": [
+      "task-212-telus-gpt-gemma-two-file-real-code-gate.md",
+      "voice-tmux-indicators-fix.md"
+    ],
+    "213": [
+      "agent-to-agent-conversation-demo.md",
+      "task-213-telus-gpt-gemma-two-file-real-code-retry.md"
+    ],
+    "214": [
+      "live-org-chart-dashboard.md",
+      "task-214-legion-compiled-knowledge-layer-phase-3-runtime-access-plan.md"
+    ],
+    "215": [
+      "sacred-data-protection-system.md",
+      "task-215-claude-llms-provider-subclass-template-plan.md"
+    ],
+    "216": [
+      "admin-knowledge-graph-panel.md",
+      "task-216-telus-claude-code-worker-operating-playbook.md"
+    ],
+    "217": [
+      "holonic-agent-architecture.md",
+      "task-217-telus-gpt-gemma-existing-code-supervised-gate.md"
+    ],
+    "218": [
+      "task-218-claude-llms-streaming-first-adapter-support-plan.md",
+      "web-terminal-interoperability.md"
+    ],
+    "219": [
+      "rhythm-audit-overhaul.md",
+      "task-219-claude-llms-capability-compat-enforcement-plan.md"
+    ],
+    "220": [
+      "persona-depth-initiative.md",
+      "task-220-claude-llms-typed-errors-route-fallback-observability-plan.md"
+    ],
+    "234": [
+      "234-claude-quartz-mission-vision-values-roadmap.md",
+      "234-shared-model-catalog-schema.md"
+    ],
+    "247": [
+      "247-legion-enrichment-plan-unified.md",
+      "247-route-all-plugins-through-claude-llms.md"
+    ],
+    "304": [
+      "304-legion-cognitive-stack-webapp-kg-temporal-spine.md",
+      "304-ontology-first-agents-autonomous-query-harness-holonic-stewards.md"
+    ],
+    "312": [
+      "312-transcription-diarization-knowledge-pipeline-restoration.md",
+      "312-voice-cloning-vision-roadmap.md"
+    ],
+    "314": [
+      "314-slack-sync-coverage-gap.md",
+      "314-telus-env-map-yaml-driven.md"
+    ],
+    "315": [
+      "315-regen-ai-execution-vision-and-roadmap.md",
+      "315-voice-arbiter-playing-msg-watchdog.md"
+    ],
+    "333": [
+      "333-claude-signals-sovereign-notification-and-crash-forensics.md",
+      "333-legion-pattern-library.md"
+    ],
+    "340": [
+      "340-claude-claude-web-plugin-vision.md",
+      "340-legion-epistemic-hygiene-doctrine.md"
+    ],
+    "341": [
+      "341-claude-claude-web-checkpoint-fixes.md",
+      "341-claude-pi-and-legion-pi-platform-vision.md"
+    ],
+    "345": [
+      "345-claude-code-oss-private-local-optimization-vision.md",
+      "345-fix-telus-chat-model-catalog-loading-and-tpf-failure-propagation.md"
+    ],
+    "346": [
+      "346-agent-c-claude-code-oss-private-local-platform-execution-plan.md",
+      "346-qwen-endpoint-harness-and-live-baseline-agent-b.md"
+    ],
+    "402": [
+      "402-commitment-extraction-research-synthesis.md",
+      "task-402 - claude-youtube-minisearch-realtime-research-browser-plan.md"
+    ],
+    "403": [
+      "403-hippo-data-quality-pipeline.md",
+      "task-403 - hermes-gemma-health-gated-integration-roadmap.md"
+    ],
+    "404": [
+      "404-claude-frontend-primitives-readiness.md",
+      "task-404 - legion-unified-llm-stack-and-agent-runtime-orchestration.md"
+    ],
+    "405": [
+      "405-legion-lens-platform-forked-turborepo-substrate.md",
+      "task-405 - telus-model-harness-verification-and-config-sync.md"
+    ],
+    "4111": [
+      "task-4111 - legion-wide-data-practices-audit.md",
+      "task-4111 - scratchpad-webui-enrichment-markdown-types-tags-harvest.md"
+    ],
+    "4132": [
+      "task-4132 - claude-logging-webui-intelligence-layer.md",
+      "task-4132 - legion-24-7-autonomy-tiered-model-router-gated-propose-only.md"
+    ],
+    "4133": [
+      "task-4133 - claude-journal-webui.md",
+      "task-4133 - temporal-ontological-kg-lenses-over-history-per-actor-goal-s.md"
+    ],
+    "4175": [
+      "task-4175 - claude-media-universal-decades-long-personal-media-library-vision.md",
+      "task-4175 - ventures-weekly-focus-and-selected-venture-task-workbench.md"
+    ],
+    "419": [
+      "419-legion-proprioception-and-inventory-webapp.md",
+      "task-419-alife-cadcad-proposal-14-section-draft.md"
+    ],
+    "420": [
+      "420-legion-full-spectrum-inventory-umbrella.md",
+      "task-420-legion-hud-tiithluup-fork-architecture.md"
+    ],
+    "421": [
+      "421-inventory-historical-mining.md",
+      "task-421-embed-backfill-asyncio-hang-py313.md"
+    ],
+    "422": [
+      "422-inventory-software-assets.md",
+      "task-422-scratchpad-invisible-to-rhythms.md"
+    ],
+    "423": [
+      "423-inventory-data-platforms.md",
+      "task-423-tmux-stream-aggregation-cluster.md"
+    ],
+    "424": [
+      "424-inventory-code-assets.md",
+      "task-424-closure-machine-perspective-rhythm.md"
+    ],
+    "425": [
+      "425-inventory-llm-and-intelligence.md",
+      "task-425 - claude-youtube-fetch-pipeline-observability.md"
+    ],
+    "426": [
+      "426-inventory-relations-people-orgs-ventures-communities.md",
+      "task-426 - claude-fdg-phase-2-second-prototype-and-first-comparison.md"
+    ],
+    "427": [
+      "427-inventory-webapp-v01-stub.md",
+      "task-427 - claude-fdg-phase-3-third-prototype-or-isolation-spike.md"
+    ],
+    "428": [
+      "428-marker-skill-resilience.md",
+      "task-428 - claude-fdg-phase-4-edges-and-layout-location-isolation.md"
+    ],
+    "509": [
+      "task-509 - claude-md-update-disable-claude-dialog.md",
+      "task-509 - claude-notion-v0-2-wire-full-write-edit-operations-behind-ap.md"
+    ],
+    "510": [
+      "task-510 - claude-notion-multi-org-reality-check-re-auth-other-notion-w.md",
+      "task-510 - register-recording-py-uses-utc-for-date-recorded-987-recordi.md"
+    ],
+    "511": [
+      "task-511 - claude-notion-legion-claude-notion-koi-sensor-traversal-base.md",
+      "task-511 - claude-voice-loud-failures-resilience-bundle.md"
+    ],
+    "512": [
+      "task-512 - claude-notion-public-release-via-plugin-dist.md",
+      "task-512 - recordings-v2-wiki-of-self-vision-and-roadmap.md"
+    ],
+    "520": [
+      "520-legion-brain-large-file-history-purge.md",
+      "task-520 - telus-embedding-endpoints-degraded-e5-503-llama32-403-blocks-subprojects-c-f-g.md",
+      "task-520 - voice-atomic-write-flag-files.md"
+    ],
+    "521": [
+      "task-521 - bridge-to-hippo-and-session-capture-two-bug-fix-stop-creating-43k-orphan-person-nodes.md",
+      "task-521 - legion-brain-large-file-backup-architecture.md",
+      "task-521 - voice-portability-protocols-audiobackend-ttsengine-sttengine-attentioncontext.md"
+    ],
+    "522": [
+      "task-522 - rhythm-nightly-integration-script-times-out-90min-add-fallback-timeout-cancel.md",
+      "task-522 - voice-4-tier-tts-fallback-ladder.md"
+    ],
+    "560": [
+      "task-560 - claude-tmux-webui-fractal-visualizer.md",
+      "task-560 - koi-statusline-section.md"
+    ]
+  },
+  "counts": {
+    "contested_filename_ids": 39,
+    "contested_frontmatter_ids": 60,
+    "filename_frontmatter_disagreements": 112,
+    "filename_id_missing": 109,
+    "files_claiming_contested_filename_ids": 81,
+    "files_claiming_contested_frontmatter_ids": 122,
+    "files_scanned": 747,
+    "frontmatter_id_missing": 26,
+    "frontmatter_parsed": 743,
+    "parse_failed": 4,
+    "venture_null": 512
+  },
+  "filename_shapes": {
+    "canonical": 492,
+    "legacy": 146,
+    "unrecognized": 109
+  },
+  "identity_disagreements": [
+    {
+      "filename_id": "232",
+      "filename_shape": "legacy",
+      "frontmatter_id": "232-system-stability-firefox-profile-recovery",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "232-system-stability-firefox-profile-recovery.md",
+      "venture": null
+    },
+    {
+      "filename_id": "002",
+      "filename_shape": "canonical",
+      "frontmatter_id": "2",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-002 - implement-synonymy-edges-in-claude-hippo.md",
+      "venture": null
+    },
+    {
+      "filename_id": "004",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-004",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-004 - koi-sensor-contactrank-scores.md",
+      "venture": null
+    },
+    {
+      "filename_id": "005",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-005",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-005 - koi-sensor-ventures.md",
+      "venture": null
+    },
+    {
+      "filename_id": "006",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-006",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-006 - koi-sensor-backlog.md",
+      "venture": null
+    },
+    {
+      "filename_id": "007",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-007",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-007 - relationship-system-overhaul.md",
+      "venture": null
+    },
+    {
+      "filename_id": "008",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-008",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-008 - investigative-briefing-agent.md",
+      "venture": null
+    },
+    {
+      "filename_id": "009",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-009",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-009 - rhythms-agent-overhaul.md",
+      "venture": null
+    },
+    {
+      "filename_id": "010",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-010",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-010 - cascadia-systems-incorporation-resubmit.md",
+      "venture": "cascadia-systems"
+    },
+    {
+      "filename_id": "011",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-011",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-011 - ltf-venture-archaeology.md",
+      "venture": "longtail-financial"
+    },
+    {
+      "filename_id": "012",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-012",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-012 - claude-viz-indigenomics-notebooks.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": "013",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-013",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-013 - ltf-onboard-claude-ventures.md",
+      "venture": null
+    },
+    {
+      "filename_id": "014",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-014",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-014 - deep-repo-analysis-ltf-commons.md",
+      "venture": null
+    },
+    {
+      "filename_id": "015",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-015",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-015 - claude-writing-plugin.md",
+      "venture": null
+    },
+    {
+      "filename_id": "016",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-016",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-016 - persona-system-mental-models-digital-twins.md",
+      "venture": null
+    },
+    {
+      "filename_id": "017",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-017",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-017 - plugin-trilogy-and-cards-relationship-matrix.md",
+      "venture": null
+    },
+    {
+      "filename_id": "018",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-018",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-018 - checkpoint-command-version-control-hygiene.md",
+      "venture": null
+    },
+    {
+      "filename_id": "019",
+      "filename_shape": "canonical",
+      "frontmatter_id": "19",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-019 - goal-architecture-implementation.md",
+      "venture": null
+    },
+    {
+      "filename_id": "020",
+      "filename_shape": "canonical",
+      "frontmatter_id": "20",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-020 - messages-knowledge-graph-storybook.md",
+      "venture": null
+    },
+    {
+      "filename_id": "022",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-022",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-022 - cascadia-bc-extraprovincial-registration.md",
+      "venture": "cascadia-systems"
+    },
+    {
+      "filename_id": "023",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-023",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-023 - symbiocene-labs-venture-onboard.md",
+      "venture": "symbiocene-labs"
+    },
+    {
+      "filename_id": "024",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-024",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-024 - kwaxala-archaeology-legal-assessment.md",
+      "venture": "kwaxala"
+    },
+    {
+      "filename_id": "025",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-025",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-025 - bcrg-archaeology-legal-assessment.md",
+      "venture": "bcrg"
+    },
+    {
+      "filename_id": "026",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-026",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-026 - indigenomics-ai-invoice-and-contract-formalize.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": "027",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-027",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-027 - salish-sea-dreaming-funding-pathway.md",
+      "venture": "salish-sea-dreaming"
+    },
+    {
+      "filename_id": "028",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-028",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-028 - follow-up-carol-anne-contract-invoice.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": "029",
+      "filename_shape": "canonical",
+      "frontmatter_id": "29",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-029 - dock-graph-ingest-milestone.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "030",
+      "filename_shape": "canonical",
+      "frontmatter_id": "30",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-030 - dock-graph-ingest-adapt-prototype-script.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "031",
+      "filename_shape": "canonical",
+      "frontmatter_id": "31",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-031 - dock-graph-ingest-incremental-cursor.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "032",
+      "filename_shape": "canonical",
+      "frontmatter_id": "32",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-032 - dock-graph-ingest-subskill.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "033",
+      "filename_shape": "canonical",
+      "frontmatter_id": "33",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-033 - dock-graph-ingest-reference-files.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "034",
+      "filename_shape": "canonical",
+      "frontmatter_id": "34",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-034 - dock-graph-ingest-wire-into-skill.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "035",
+      "filename_shape": "canonical",
+      "frontmatter_id": "35",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-035 - monthly-financial-review-rhythm-command.md",
+      "venture": null
+    },
+    {
+      "filename_id": "036",
+      "filename_shape": "canonical",
+      "frontmatter_id": "36",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-036 - claude-fetch-crawl4ai-web-fetch-interception.md",
+      "venture": null
+    },
+    {
+      "filename_id": "047",
+      "filename_shape": "canonical",
+      "frontmatter_id": "47",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-047 - pipeline-heartbeat-monitor.md",
+      "venture": null
+    },
+    {
+      "filename_id": "048",
+      "filename_shape": "canonical",
+      "frontmatter_id": "48",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-048 - universal-intent-ledger.md",
+      "venture": null
+    },
+    {
+      "filename_id": "049",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-049",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-049 - mothership-firefox-history-backfill.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "050",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-050",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-050 - phase-4c-graphiti-validation.md",
+      "venture": null
+    },
+    {
+      "filename_id": "051",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-051",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-051 - google-takeout-phase3-verify-real-data.md",
+      "venture": null
+    },
+    {
+      "filename_id": "052",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-052",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-052 - browser-history-phase-5-mcp-query-layer.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "053",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-053",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-053 - transcript-processing-phase1-automation.md",
+      "venture": null
+    },
+    {
+      "filename_id": "054",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-054",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-054 - dream-system-post-implementation-review.md",
+      "venture": null
+    },
+    {
+      "filename_id": "055",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-055",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-055 - financial-recovery-continuation-visa-onchain-export.md",
+      "venture": null
+    },
+    {
+      "filename_id": "056",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-056",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-056 - legion-platform-roadmap.md",
+      "venture": null
+    },
+    {
+      "filename_id": "057",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-057",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-057 - supersede-overlapping-tasks.md",
+      "venture": null
+    },
+    {
+      "filename_id": "058",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-058",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-058 - fix-plugin-infrastructure.md",
+      "venture": null
+    },
+    {
+      "filename_id": "059",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-059",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-059 - cards-db-and-wire-adapters.md",
+      "venture": null
+    },
+    {
+      "filename_id": "060",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-060",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-060 - messages-to-hippo-bridge.md",
+      "venture": null
+    },
+    {
+      "filename_id": "061",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-061",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-061 - relationship-extraction-pipeline.md",
+      "venture": null
+    },
+    {
+      "filename_id": "062",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-062",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-062 - deploy-legion-django.md",
+      "venture": null
+    },
+    {
+      "filename_id": "063",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-063",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-063 - normalize-agent-frontmatter.md",
+      "venture": null
+    },
+    {
+      "filename_id": "064",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-064",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-064 - agent-registry-mvp.md",
+      "venture": null
+    },
+    {
+      "filename_id": "065",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-065",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-065 - django-archaeology.md",
+      "venture": null
+    },
+    {
+      "filename_id": "066",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-066",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-066 - data-engineering-foundations.md",
+      "venture": null
+    },
+    {
+      "filename_id": "067",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-067",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-067 - card-priority-and-decks.md",
+      "venture": null
+    },
+    {
+      "filename_id": "068",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-068",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-068 - plugin-smoke-tests-cluster-b.md",
+      "venture": null
+    },
+    {
+      "filename_id": "069",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-069",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-069 - cluster-b-plugin-template.md",
+      "venture": null
+    },
+    {
+      "filename_id": "070",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-070",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-070 - sonnet-default-migration.md",
+      "venture": null
+    },
+    {
+      "filename_id": "071",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-071",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-071 - iai-transcript-diarization-sprint.md",
+      "venture": null
+    },
+    {
+      "filename_id": "072",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-072",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-072 - iai-venture-audit-and-repo.md",
+      "venture": null
+    },
+    {
+      "filename_id": "073",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-073",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-073 - dock-sprint-13-repos.md",
+      "venture": null
+    },
+    {
+      "filename_id": "074",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-074",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-074 - koi-sensor-sprint-3-quick-wins.md",
+      "venture": null
+    },
+    {
+      "filename_id": "075",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-075",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-075 - youtube-pipeline-hardening.md",
+      "venture": null
+    },
+    {
+      "filename_id": "076",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-076",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-076 - claude-llms-phase1-python-lib.md",
+      "venture": null
+    },
+    {
+      "filename_id": "077",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-077",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-077 - fish-shell-history-sensor.md",
+      "venture": null
+    },
+    {
+      "filename_id": "078",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-078",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-078 - telegram-channel-setup.md",
+      "venture": null
+    },
+    {
+      "filename_id": "086",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-086",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-086 - wed-mar25-dual-deliverables.md",
+      "venture": null
+    },
+    {
+      "filename_id": "087",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-087",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-087 - claude-core-infrastructure-management-plugin.md",
+      "venture": null
+    },
+    {
+      "filename_id": "088",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-088",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-088 - telus-mistral-embedding-endpoint-fix.md",
+      "venture": null
+    },
+    {
+      "filename_id": "089",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-089",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-089 - koi-planning-sensor-verification.md",
+      "venture": null
+    },
+    {
+      "filename_id": "090",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-090",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-090 - claude-tmux-cognitive-persistence-testing.md",
+      "venture": null
+    },
+    {
+      "filename_id": "091",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-091",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-091 - diarization-default-transcription-pipeline.md",
+      "venture": null
+    },
+    {
+      "filename_id": "092",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-092",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-092 - meeting-intelligence-pipeline.md",
+      "venture": null
+    },
+    {
+      "filename_id": "093",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-093",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-093 - claude-ontologies-schema-registry.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "094",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-094",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-094 - claude-relationships-networks-of-networks.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "095",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-095",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-095 - claude-turborepo-monorepo.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "096",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-096",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-096 - claude-tv-universal-interface.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "097",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-097",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-097 - claude-mcp-plugin-and-legion-gateway.md",
+      "venture": null
+    },
+    {
+      "filename_id": "098",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-098",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-098 - claude-elizaos-agent-factory-knowledge-platform.md",
+      "venture": "regen-ai"
+    },
+    {
+      "filename_id": "099",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-099",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-099 - expose-legion-gateway-via-tailscale-funn.md",
+      "venture": null
+    },
+    {
+      "filename_id": "100",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-100",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-100 - signal-sync-broken-critical-data-gap.md",
+      "venture": null
+    },
+    {
+      "filename_id": "101",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-101",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-101 - statusline-persona-detection-stale-inheritance.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "102",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-102",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-102 - docked-repos-auto-pull-schedule.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "103",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-103",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-103 - tts-daemon-auto-restart-on-code-change.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "106",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-106",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-106 - post-transcription-hook-auto-rename-prose-vault.md",
+      "venture": null
+    },
+    {
+      "filename_id": "107",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-107",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-107 - fix-scratchpad-skill-dispatch-opus-sonnet.md",
+      "venture": null
+    },
+    {
+      "filename_id": "108",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-108",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-108 - fix-tmux-snow-theme-text-color-clobber.md",
+      "venture": null
+    },
+    {
+      "filename_id": "109",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-109",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-109 - tmux-session-list-in-powerline.md",
+      "venture": null
+    },
+    {
+      "filename_id": "110",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-110",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-110 - tmux-persona-session-indicator-emoji.md",
+      "venture": null
+    },
+    {
+      "filename_id": "111",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-111",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-111 - collectors-book-fleet-network-abstraction.md",
+      "venture": null
+    },
+    {
+      "filename_id": "112",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-112",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-112 - fix-plugin-model-overrides-and-duplicate-hooks.md",
+      "venture": null
+    },
+    {
+      "filename_id": "113",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-113",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-113 - neovim-config-migration-nvim-011.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "114",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-114",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-114 - claude-tmux-indicator-state-accuracy-overhaul.md",
+      "venture": null
+    },
+    {
+      "filename_id": "115",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-115",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-115 - tv-tmux-navigation-channels.md",
+      "venture": null
+    },
+    {
+      "filename_id": "116",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-116",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-116 - port-tmux-text-macros-emoji-picker.md",
+      "venture": null
+    },
+    {
+      "filename_id": "117",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-117",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-117 - kde-key-repeat-speed.md",
+      "venture": null
+    },
+    {
+      "filename_id": "118",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-118",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-118 - configuration-repo-archaeology.md",
+      "venture": null
+    },
+    {
+      "filename_id": "119",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-119",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-119 - tmux-persona-session-architecture.md",
+      "venture": null
+    },
+    {
+      "filename_id": "153",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-153",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-153-meta-prompt-digestion.md",
+      "venture": null
+    },
+    {
+      "filename_id": "170",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-170",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-170-gregory-pp-staging-update.md",
+      "venture": "regen-ai"
+    },
+    {
+      "filename_id": "171",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-171",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-171-carol-anne-invoice.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": "172",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-172",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-172-pp-discord-cross-agent-mentions-and-missing-bots.md",
+      "venture": "regen-ai"
+    },
+    {
+      "filename_id": "173",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-173",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-173-fleet-msg-bidirectional.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "174",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-174",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-174-voice-audio-routing.md",
+      "venture": null
+    },
+    {
+      "filename_id": "175",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-175",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-175-voice-code-review-remediation.md",
+      "venture": null
+    },
+    {
+      "filename_id": "176",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-176",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-176-voice-queue-socket-reliability.md",
+      "venture": null
+    },
+    {
+      "filename_id": "177",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-177",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-177-hippo-pipeline-first-principles-redesign.md",
+      "venture": null
+    },
+    {
+      "filename_id": "179",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-179",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-179-legion-observatory-6hour-sprint.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "187",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-187",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-187-logging-plugin-blackout-investigation.md",
+      "venture": null
+    },
+    {
+      "filename_id": "188",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-188",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-188-receptionist-persona-system.md",
+      "venture": null
+    },
+    {
+      "filename_id": "507",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-507",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-507-claude-webui-platform-deps-preflight.md",
+      "venture": null
+    },
+    {
+      "filename_id": "508",
+      "filename_shape": "canonical",
+      "frontmatter_id": "task-508",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-508-claude-ventures-webui.md",
+      "venture": null
+    }
+  ],
+  "missing_filename_ids": [
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "truncation-audit-2026-04-27",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "2026-04-27-truncation-audit-system-wide.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "rhythms-integrity-roadmap-2026-04-28",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "2026-04-28-rhythms-integrity-roadmap.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "2026-05-06-lemur-secrets-extraction",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "2026-05-06-lemur-secrets-extraction.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "2026-05-06-nvme0-migration",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "2026-05-06-nvme0-migration-weekend.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "1",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "4hr-sprint-knowledge-digestion.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "104",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "add-voice-blocks-to-persona-yamls.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "216",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "admin-knowledge-graph-panel.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "209",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "agent-role-system.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "213",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "agent-to-agent-conversation-demo.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "136",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "autonomy-gradient-mapping.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "backfill-legacy-plugin-contracts",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "backfill-legacy-plugin-contracts.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "124",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "bluesky-api-integration.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "123",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "build-image-generation-skill.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "107",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "build-stt-daemon-vad-whisper-intent.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "102",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "build-tts-daemon.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "128",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "build-writing-preset-system.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "208",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "claude-emoji-universal-language.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "210",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "claude-org-plugin.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "claude-people-plugin",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "claude-people-plugin-vision.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "claude-people-vision-and-roadmap.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "claude-relationships-vision-and-roadmap.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "126",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "content-cadence-rhythm.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "116",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "create-euclid-persona.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "115",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "create-euler-persona.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "141",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "create-shaw-prompt-engineer-persona.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "117",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "create-uofa-professor-persona.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "131",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "cross-domain-knowledge-bridging.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "121",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "design-card-django-forcegraph-translation.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "draft-e15-recordings-sync-to-legion.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "draft-invoice-payment-details-per-invoice.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "222",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "driver-alarm-daemon.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "223",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "driver-orchestrator-architecture.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "130",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "embedding-gap-closure.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "211",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "emoji-integration-across-all-systems.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "118",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "extract-claude-web-prompt-templates.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "200",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "fix-signal-mention-resolution.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "focus-engine-emoji-grammar.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "134",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "formalize-intents-over-implementations.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "127",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "formalize-liquid-compute.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "221",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "fractal-health-check-framework.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "135",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "garden-metaphor-intellectual-lineage.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "125",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ghost-self-hosted-blog.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "133",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "google-takeout-ingestion-urgent.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "217",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "holonic-agent-architecture.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "iai-future-work-memo-mar31",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "iai-future-work-memo-mar31.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "iai-graph-rag-embedding-highlighting",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "iai-graph-rag-embedding-highlighting.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "iai-pageindex-knowledge-infrastructure",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "iai-pageindex-knowledge-infrastructure.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "iai-scenario-visual-response",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "iai-scenario-visual-response.md",
+      "venture": "indigenomics-ai"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "113",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "identity-resolver-reads-personas.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "122",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "install-comfyui-flux-schnell.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "101",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "install-kokoro-82m-tts.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "knowledge-harness-youtube-sources",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "knowledge-harness-youtube-sources.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "knowledge-intelligence-pipeline",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "knowledge-intelligence-pipeline.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "206",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "legion-temporal-observatory.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "missing YAML frontmatter",
+      "parse_status": "failed",
+      "path": "legion1-finance-ledger-sync-when-awake.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "214",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "live-org-chart-dashboard.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "119",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "map-prompts-to-personas.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "207",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "meta-roadmap-april-week1.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "milestone-001",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "milestone-001 - financial-legal-standing-apr15.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "milestone-002",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "milestone-002 - legion-platform-v1.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "205",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "model-backend-evaluation.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "111",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "multi-agent-audio-coordination.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "129",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "nightly-integration-profiling.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-profile-field-visibility",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-profile-field-visibility.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 17, column 76:\n     ... on? (line 371) \u2014 current shape: `{\"human_design\": \"...\", \"gene_k ... \n                                         ^",
+      "parse_status": "failed",
+      "path": "oasis-profile-frameworks-ui.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-profile-nav-exposure",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-profile-nav-exposure.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-profile-phone-fields",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-profile-phone-fields.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-profile-toggles",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-profile-toggles.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-profile-trust-display-merge",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-profile-trust-display-merge.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-shawn-v1-scope-vision-and-roadmap",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-shawn-v1-scope-vision-and-roadmap.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "ParserError: while parsing a block mapping\n  in \"<unicode string>\", line 18, column 5:\n      - TODO.md (already tracks: \"Determ ... \n        ^\nexpected <block end>, but found '<scalar>'\n  in \"<unicode string>\", line 18, column 75:\n     ... c trust calculation/advancement\")\n                                         ^",
+      "parse_status": "failed",
+      "path": "oasis-trust-calculation-job.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-trust-demo-seed",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-trust-demo-seed.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-trust-moderation-adjustment",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-trust-moderation-adjustment.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "oasis-trust-vouch-level-gate",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "oasis-trust-vouch-level-gate.md",
+      "venture": "ecoscene-oasis"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "114",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "per-prompt-personality-injection.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "220",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "persona-depth-initiative.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "105",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "persona-mapped-tts.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "110",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "port-poc-ipc-protocol-python.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "109",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "port-poc-queue-manager-python.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "204",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "prompts-inference-sync-pipeline.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "138",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "proprioception-for-ai.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "132",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "provenance-tracking-w3c-provo.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-h1-validation-and-ship-plan",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-h1-validation-and-ship-plan.md",
+      "venture": "regen-ai"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-phase-a",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-phase-a-plan.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-phase-b",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-phase-b-plan.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-phase-c",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-phase-c-plan.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-phase-d",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-phase-d-plan.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-phase-e",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-phase-e-plan.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-phase-f",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-phase-f-plan.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-phase-g",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-phase-g-plan.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-vision-roadmap",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-registry-review-vision-and-roadmap.md",
+      "venture": "regen-ai"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "ra-agent-roadmap-to-100-quality",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "ra-agent-roadmap-to-100-quality.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "108",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "replace-anthropic-stt-with-local.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "139",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "research-synthesis-deep-review.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "219",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "rhythm-audit-overhaul.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "215",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "sacred-data-protection-system.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "stt-voice-input-vision.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "120",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "study-gaia-repo-regen-prod.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "137",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "temporal-awareness-formalization.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "140",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "tmux-emoji-picker-chezmoi-audit.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "201",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "two-matt-agent-orchestration.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "unified-emoji-grammar",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "unified-emoji-grammar-vision.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "203",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "voice-health-graceful-degradation.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "212",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "voice-tmux-indicators-fix.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "202",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "voice-tmux-targeting-and-queue.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "218",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "web-terminal-interoperability.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "106",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "wire-faster-whisper-stt-service.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "103",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "wire-tts-daemon-to-hooks.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": "112",
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "wire-voice-section-persona-yaml-schema.md",
+      "venture": null
+    }
+  ],
+  "missing_frontmatter_ids": [
+    {
+      "filename_id": "240",
+      "filename_shape": "legacy",
+      "frontmatter_id": null,
+      "parse_error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 24, column 5:\n      - `videos.status` CHECK constraint ... \n        ^",
+      "parse_status": "failed",
+      "path": "240-hippo-ingest-pipeline-stage.md",
+      "venture": null
+    },
+    {
+      "filename_id": "319",
+      "filename_shape": "legacy",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "319-claude-llms-logger-embedding-failure-misclassification.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "claude-people-vision-and-roadmap.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "claude-relationships-vision-and-roadmap.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "draft-e15-recordings-sync-to-legion.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "draft-invoice-payment-details-per-invoice.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "focus-engine-emoji-grammar.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "missing YAML frontmatter",
+      "parse_status": "failed",
+      "path": "legion1-finance-ledger-sync-when-awake.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 17, column 76:\n     ... on? (line 371) \u2014 current shape: `{\"human_design\": \"...\", \"gene_k ... \n                                         ^",
+      "parse_status": "failed",
+      "path": "oasis-profile-frameworks-ui.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "ParserError: while parsing a block mapping\n  in \"<unicode string>\", line 18, column 5:\n      - TODO.md (already tracks: \"Determ ... \n        ^\nexpected <block end>, but found '<scalar>'\n  in \"<unicode string>\", line 18, column 75:\n     ... c trust calculation/advancement\")\n                                         ^",
+      "parse_status": "failed",
+      "path": "oasis-trust-calculation-job.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "stt-voice-input-vision.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "003",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-003 - segmented-borg-backup-strategy.md",
+      "venture": null
+    },
+    {
+      "filename_id": "021",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-021 - youtube-transcript-ingestion-architecture.md",
+      "venture": null
+    },
+    {
+      "filename_id": "037",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-037 - e15-cachyos-migration-backup-wipe-legion-onboard.md",
+      "venture": null
+    },
+    {
+      "filename_id": "038",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-038 - rhythms-push-and-tag-release.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "039",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-039 - rhythms-verify-6-investigator-brief.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "040",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-040 - rhythms-update-docs-6-investigators.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "041",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-041 - rhythms-fix-schema-column-names.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "042",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-042 - rhythms-add-signals-to-weekly-evaluator.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "043",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-043 - rhythms-check-timeout-other-rhythms.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "044",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-044 - claude-documents-filing-system-plugin.md",
+      "venture": "personal"
+    },
+    {
+      "filename_id": "045",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-045 - protocol-politicians-equinox-sprint.md",
+      "venture": "regen-ai"
+    },
+    {
+      "filename_id": "046",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-046 - fix-logging-db-continuous-sync.md",
+      "venture": "legion"
+    },
+    {
+      "filename_id": "449",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-449 - fleet-pulse-auto-refresh-last-seen.md",
+      "venture": null
+    },
+    {
+      "filename_id": "450",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-450 - federated-legion-architecture-investigation.md",
+      "venture": null
+    },
+    {
+      "filename_id": "508",
+      "filename_shape": "canonical",
+      "frontmatter_id": null,
+      "parse_error": null,
+      "parse_status": "parsed",
+      "path": "task-508-phase-1.md",
+      "venture": null
+    }
+  ],
+  "parse_failures": [
+    {
+      "filename_id": "240",
+      "filename_shape": "legacy",
+      "frontmatter_id": null,
+      "parse_error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 24, column 5:\n      - `videos.status` CHECK constraint ... \n        ^",
+      "parse_status": "failed",
+      "path": "240-hippo-ingest-pipeline-stage.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "missing YAML frontmatter",
+      "parse_status": "failed",
+      "path": "legion1-finance-ledger-sync-when-awake.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 17, column 76:\n     ... on? (line 371) \u2014 current shape: `{\"human_design\": \"...\", \"gene_k ... \n                                         ^",
+      "parse_status": "failed",
+      "path": "oasis-profile-frameworks-ui.md",
+      "venture": null
+    },
+    {
+      "filename_id": null,
+      "filename_shape": "unrecognized",
+      "frontmatter_id": null,
+      "parse_error": "ParserError: while parsing a block mapping\n  in \"<unicode string>\", line 18, column 5:\n      - TODO.md (already tracks: \"Determ ... \n        ^\nexpected <block end>, but found '<scalar>'\n  in \"<unicode string>\", line 18, column 75:\n     ... c trust calculation/advancement\")\n                                         ^",
+      "parse_status": "failed",
+      "path": "oasis-trust-calculation-job.md",
+      "venture": null
+    }
+  ],
+  "root": "/home/shawn/legion-brain/local/backlog",
+  "schema_version": 1
+}

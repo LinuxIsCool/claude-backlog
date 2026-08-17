@@ -50,6 +50,32 @@ class BacklogHandler(WebuiHandler):
 
         parsed = urlparse(self.path)
         path = unquote(parsed.path)
+        params_raw = parse_qs(parsed.query, keep_blank_values=True)
+        # The old SPA contract was /?task=<reference>. Make it a real HTTP
+        # redirect so bookmarks and links converge on the canonical route.
+        if path in ("/", "/index.html") and params_raw.get("task"):
+            reference = params_raw["task"][0]
+            resolution = self.accessor.resolve_reference(reference)  # type: ignore[attr-defined]
+            if resolution.status == "ambiguous":
+                self._send_json(
+                    {"error": "task_reference_ambiguous", "reference": reference,
+                     "targets": list(resolution.targets)}, status=409,
+                )
+                return
+            detail = self.accessor.detail(reference)
+            canonical = resolution.canonical_id if resolution.status == "resolved" else detail.get("canonical_id") or detail.get("id")
+            if detail.get("error") or canonical is None:
+                self._send_json(detail or {"error": "task_not_found", "item_id": reference}, status=404)
+                return
+            from urllib.parse import quote
+
+            self.send_response(301)
+            self.send_header(
+                "Location", f"/backlog/tasks/{quote(str(canonical), safe='')}?from={quote(reference, safe='')}"
+            )
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
         if path == "/api/facets":
             try:
                 payload = self.accessor.facets()  # type: ignore[attr-defined]
@@ -67,6 +93,39 @@ class BacklogHandler(WebuiHandler):
                 self._send_json({"error": str(exc)}, status=500)
                 return
             self._send_json(payload)
+            return
+        if path.startswith("/backlog/tasks/") or path.startswith("/tasks/"):
+            prefix = "/backlog/tasks/" if path.startswith("/backlog/tasks/") else "/tasks/"
+            reference = path.removeprefix(prefix).strip("/")
+            resolution = self.accessor.resolve_reference(reference)  # type: ignore[attr-defined]
+            if resolution.status == "ambiguous":
+                self._send_json(
+                    {"error": "task_reference_ambiguous", "reference": reference,
+                     "targets": list(resolution.targets)},
+                    status=409,
+                )
+                return
+            if resolution.status != "resolved" or resolution.canonical_id is None:
+                # Compatibility fallback keeps numeric canonical routes working
+                # while the parallel index is unavailable or not yet cut over.
+                detail = self.accessor.detail(reference)
+                if detail.get("error"):
+                    self._send_json(detail, status=404)
+                    return
+                canonical = str(detail.get("canonical_id") or detail.get("id"))
+            else:
+                canonical = resolution.canonical_id
+            if reference != canonical:
+                from urllib.parse import quote
+
+                self.send_response(301)
+                self.send_header(
+                    "Location", f"/backlog/tasks/{quote(canonical, safe='')}?from={quote(reference, safe='')}"
+                )
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
+            self._serve_index()
             return
         # /static/<path> dispatch is handled by the kernel's two-layer
         # _serve_static (satellite static_dir → claude-webui shared
@@ -106,6 +165,7 @@ def build_kernel(
     port: int = 6420,
     bind: str = "127.0.0.1",
     root: Path | None = None,
+    addr_index: Path | None = None,
 ) -> BacklogKernel:
     """Construct a configured kernel for the claude-backlog satellite.
 
@@ -120,7 +180,7 @@ def build_kernel(
     """
     from claude_backlog.io import BACKLOG_ROOT, Stage
 
-    accessor = BacklogAccessor(root=root)
+    accessor = BacklogAccessor(root=root, addr_index=addr_index)
     backlog_root = root or BACKLOG_ROOT
 
     # Watch all three stage directories. Drafts + archive may not exist

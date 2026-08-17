@@ -28,9 +28,11 @@ from __future__ import annotations
 
 import re
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 from claude_backlog import __version__ as _BACKLOG_VERSION
 from claude_backlog.errors import BacklogToolError
@@ -44,6 +46,8 @@ from claude_backlog.io import (
     read_task,
 )
 from claude_backlog.schema import Task
+from claude_backlog.venture_resolution import resolve_venture
+from claude_backlog.web.task_resolution import TaskReferenceResolver, TaskResolution
 
 # --- Constants --------------------------------------------------------------
 
@@ -148,8 +152,9 @@ class BacklogAccessor:
     namespace = NAMESPACE
     version = _BACKLOG_VERSION
 
-    def __init__(self, root: Path | None = None) -> None:
+    def __init__(self, root: Path | None = None, addr_index: Path | None = None) -> None:
         self.root = root or BACKLOG_ROOT
+        self.task_resolver = TaskReferenceResolver(self.root, addr_index)
         # Per-stage cache. Keys: Stage enum.
         # Value: (signature_tuple, tasks, mtime_by_id_dict).
         # The mtime map enables modified_at exposure in list/feed/search
@@ -321,10 +326,22 @@ class BacklogAccessor:
 
     def detail(self, item_id: str) -> dict[str, Any]:
         """Return full record for a single task ID."""
+        resolution = self.task_resolver.resolve(item_id)
+        if resolution.status == "ambiguous":
+            return {
+                "error": "task_reference_ambiguous",
+                "item_id": item_id,
+                "targets": list(resolution.targets),
+            }
+        if resolution.status == "resolved" and resolution.path is not None:
+            detail = _detail_from_resolved_path(resolution)
+            if detail is not None:
+                return detail
         try:
             task_id = _coerce_task_id(item_id)
         except ValueError as exc:
-            return {"error": str(exc), "item_id": item_id}
+            legacy = _legacy_slug_detail(self.root, item_id)
+            return legacy if legacy is not None else {"error": str(exc), "item_id": item_id}
         path = find_task(task_id, Stage.ANY, self.root)
         if path is None:
             return {"error": "task_not_found", "item_id": item_id}
@@ -338,6 +355,10 @@ class BacklogAccessor:
                 "detail": str(exc),
             }
         return _detail(t, path)
+
+    def resolve_reference(self, item_id: str) -> TaskResolution:
+        """Resolve canonical task routes without exposing SQLite to handlers."""
+        return self.task_resolver.resolve(item_id)
 
     def stats(self) -> dict[str, Any]:
         """Aggregate counts across the active + drafts corpus."""
@@ -797,6 +818,8 @@ def _summary(t: Task, *, mtime: float | None = None) -> dict[str, Any]:
     modified_at: str | None = None
     if mtime is not None:
         modified_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+    project = t.extra_frontmatter.get("project")
+    resolution = resolve_venture(t.venture, project=project)
     return {
         "id": t.id,
         "title": t.title,
@@ -807,6 +830,12 @@ def _summary(t: Task, *, mtime: float | None = None) -> dict[str, Any]:
         "modified_at": modified_at,
         "tags": list(t.tags),
         "venture": t.venture,
+        "venture_canonical": resolution.canonical,
+        "venture_resolution": resolution.as_dict(),
+        "canonical_uri": f"legion://claude-backlog/task/{t.id}",
+        "canonical_url": f"/backlog/tasks/{t.id}",
+        "program": t.extra_frontmatter.get("program") or resolution.program,
+        "project": project or resolution.project,
         "milestone": t.milestone,
         "parent_task": t.parent_task,
         "depends_on": list(t.depends_on),
@@ -838,7 +867,117 @@ def _detail(t: Task, path: Path) -> dict[str, Any]:
     base["ordinal"] = t.ordinal
     base["on_status_change"] = t.on_status_change
     base["extra"] = dict(t.extra_frontmatter)
+    base["canonical_url"] = f"/backlog/tasks/{t.id}"
+    base["canonical_uri"] = f"legion://claude-backlog/task/{t.id}"
     return base
+
+
+def _detail_from_resolved_path(resolution: TaskResolution) -> dict[str, Any] | None:
+    assert resolution.path is not None
+    try:
+        task = read_task(resolution.path)
+        detail = _detail(task, resolution.path)
+    except (BacklogToolError, ValueError):
+        detail = _untyped_path_detail(resolution.path, resolution.canonical_id or "")
+        if detail is None:
+            return None
+    detail["canonical_id"] = resolution.canonical_id
+    detail["canonical_url"] = f"/backlog/tasks/{resolution.canonical_id}"
+    detail["resolved_from"] = resolution.reference
+    detail["resolution"] = resolution.resolution
+    detail["identity_contested"] = resolution.contested
+    return detail
+
+
+def _untyped_path_detail(path: Path, canonical_id: str) -> dict[str, Any] | None:
+    """Render records whose historical string ID cannot enter Task(int id)."""
+    try:
+        text = path.read_text(encoding="utf-8")
+        if not text.startswith("---"):
+            return None
+        parts = text.split("---", 2)
+        metadata = yaml.safe_load(parts[1]) or {}
+        body = parts[2].lstrip("\n")
+    except (OSError, yaml.YAMLError, IndexError):
+        return None
+    checked, total = _count_checkboxes(body)
+    return {
+        "id": canonical_id,
+        "title": str(metadata.get("title") or path.stem),
+        "status": str(metadata.get("status") or ""),
+        "status_family": _normalize_status(metadata.get("status")),
+        "priority": str(metadata.get("priority") or "medium"),
+        "created": str(metadata.get("created") or ""),
+        "modified_at": datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat(),
+        "tags": list(metadata.get("tags") or []),
+        "venture": metadata.get("venture"),
+        "body": body,
+        "path": str(path),
+        "checkbox_checked": checked,
+        "checkbox_total": total,
+        "checkbox_ratio": (checked / total) if total else None,
+        "legacy_string_id": True,
+        "canonical_uri": f"legion://claude-backlog/task/{canonical_id}",
+        "canonical_url": f"/backlog/tasks/{canonical_id}",
+        "extra": dict(metadata),
+    }
+
+
+def _legacy_slug_detail(root: Path, item_id: str) -> dict[str, Any] | None:
+    """Read legacy tasks whose canonical ID is a safe string slug.
+
+    The corpus predates Backlog's integer-ID contract in a few venture task
+    sets. They must remain navigable while migration is pending.
+    """
+    slug = item_id.strip()
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}", slug):
+        return None
+    path = (Path(root) / f"{slug}.md").resolve()
+    if not path.is_relative_to(Path(root).resolve()) or not path.is_file():
+        return None
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return None
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return None
+    metadata = yaml.safe_load(parts[1]) or {}
+    if str(metadata.get("id") or path.stem) != slug:
+        return None
+    body = parts[2].lstrip("\n")
+    checked, total = _count_checkboxes(body)
+    return {
+        "id": slug,
+        "title": str(metadata.get("title") or slug),
+        "status": str(metadata.get("status") or ""),
+        "status_family": _normalize_status(metadata.get("status")),
+        "priority": str(metadata.get("priority") or "medium"),
+        "created": str(metadata.get("created") or ""),
+        "modified_at": datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat(),
+        "tags": list(metadata.get("tags") or []),
+        "venture": metadata.get("venture"),
+        "milestone": metadata.get("milestone"),
+        "parent_task": metadata.get("parent_task"),
+        "depends_on": list(metadata.get("depends_on") or []),
+        "blocks": list(metadata.get("blocks") or []),
+        "due": str(metadata.get("due") or "") or None,
+        "checkbox_checked": checked,
+        "checkbox_total": total,
+        "checkbox_ratio": (checked / total) if total else None,
+        "creator_persona": metadata.get("creator_persona"),
+        "assignee_persona": metadata.get("assignee_persona"),
+        "body": body,
+        "path": str(path),
+        "effort": metadata.get("effort"),
+        "estimated_hours": metadata.get("estimated_hours"),
+        "modified_files": list(metadata.get("modified_files") or []),
+        "documentation": list(metadata.get("documentation") or []),
+        "definition_of_done": list(metadata.get("definition_of_done") or []),
+        "ordinal": metadata.get("ordinal"),
+        "on_status_change": metadata.get("on_status_change"),
+        "extra": metadata,
+        "legacy_string_id": True,
+    }
 
 
 def _feed_item(t: Task) -> dict[str, Any]:

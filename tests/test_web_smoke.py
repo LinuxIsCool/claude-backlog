@@ -170,6 +170,18 @@ def test_detail_invalid_id_returns_error_envelope() -> None:
     assert "error" in d
 
 
+def test_detail_supports_legacy_string_id_task(tmp_path: Path) -> None:
+    (tmp_path / "iai-graph-rag.md").write_text(
+        "---\nid: iai-graph-rag\ntitle: Graph RAG\nstatus: ready\n"
+        "priority: critical\nventure: indigenomics-ai\n---\n\n# Goal\nShip it.\n"
+    )
+    detail = BacklogAccessor(root=tmp_path).detail("iai-graph-rag")
+    assert detail["title"] == "Graph RAG"
+    assert detail["status_family"] == "To Do"
+    assert detail["legacy_string_id"] is True
+    assert "Ship it" in detail["body"]
+
+
 # --- CLI argparse contract --------------------------------------------------
 
 

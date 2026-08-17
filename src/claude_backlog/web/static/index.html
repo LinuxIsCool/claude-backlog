@@ -211,6 +211,11 @@ const SORT_DEFAULT_DIR        = {
  * STATE
  * ═══════════════════════════════════════════════════════════════════════ */
 const initialParams = new URLSearchParams(location.search);
+const canonicalTaskMatch = location.pathname.match(/(?:^|\/)(?:backlog\/)?tasks\/([^/]+)\/?$/);
+const initialTaskId = canonicalTaskMatch
+  ? decodeURIComponent(canonicalTaskMatch[1])
+  : initialParams.get('task');
+const initialRedirectedFrom = initialParams.get('from') || null;
 
 window.BacklogApp = {
   version: '0.2.6',
@@ -220,7 +225,8 @@ window.BacklogApp = {
   // URL ?sort_col=priority&sort_dir=asc still works if you bookmark it.
   state: {
     view:          (initialParams.get('view')          || 'kanban'),
-    selected_id:   (initialParams.get('task')          || null),
+    selected_id:   (initialTaskId                      || null),
+    redirected_from: initialRedirectedFrom,
     q:             (initialParams.get('q')             || ''),
     status_family: (initialParams.get('status_family') || ''),
     priority:      (initialParams.get('priority')      || ''),
@@ -1341,6 +1347,14 @@ async function renderDetail() {
     return;
   }
   clear(slot);
+  if (state.redirected_from && state.redirected_from !== String(t.canonical_id || t.id)) {
+    slot.appendChild(el('div', { class: 'mb-2 rounded border border-yellow/30 bg-yellow/5 px-2 py-1 text-[0.65rem] text-yellow' },
+      `redirected from ${state.redirected_from} · canonical task identity`));
+  }
+  if (t.identity_contested) {
+    slot.appendChild(el('div', { class: 'mb-2 rounded border border-red/30 bg-red/5 px-2 py-1 text-[0.65rem] text-red' },
+      'identity collision recorded · this task requires reconciliation review'));
+  }
   const pct = t.checkbox_total ? Math.round(100 * t.checkbox_checked / t.checkbox_total) : null;
   slot.appendChild(el('div', { class: 'flex items-baseline gap-2 mb-2' },
     el('span', { class: `pri-dot ${PRIORITY_DOT[t.priority] || ''}` }),
