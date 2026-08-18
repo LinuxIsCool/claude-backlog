@@ -44,6 +44,34 @@ class BacklogHandler(WebuiHandler):
         "Each kernel instance gets its own handler subclass."
     """
 
+    def _serve_index_rooted(self, path: str) -> None:
+        """Serve the SPA shell with a <base> that lifts relative URLs to the app root.
+
+        The shell is written for the app root but a canonical task URL serves it
+        one level deeper, so `api/list` and `static/vendor/...` would resolve
+        into `tasks/<id>/` and 404 — the page loads and then cannot fetch
+        anything. The hub strips the mount prefix before the handler sees the
+        path, so the base cannot name `/backlog` itself; it has to be relative
+        and let the browser resolve it against whatever prefix it is really on.
+        """
+        if self.static_dir is None:
+            return self._send_json(
+                {"error": "no static_dir configured on this kernel"}, status=500
+            )
+        index_path = self.static_dir / "index.html"
+        if not index_path.is_file():
+            return self._send_json(
+                {"error": f"index.html not found at {index_path}"}, status=500
+            )
+        # The route is always exactly `tasks/<id>`: one level up without a
+        # trailing slash, two with one (the browser treats `<id>/` as a dir).
+        base = "../../" if path.endswith("/") else "../"
+        html = index_path.read_text(encoding="utf-8")
+        html = html.replace("<head>", f'<head>\n<base href="{base}">', 1)
+        self._send_bytes(
+            html.encode("utf-8"), content_type="text/html; charset=utf-8"
+        )
+
     def _dispatch_get(self) -> None:  # noqa: D401
         # Parse once — same shape the kernel uses.
         from urllib.parse import parse_qs, unquote, urlparse
@@ -125,7 +153,7 @@ class BacklogHandler(WebuiHandler):
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 return
-            self._serve_index()
+            self._serve_index_rooted(path)
             return
         # /static/<path> dispatch is handled by the kernel's two-layer
         # _serve_static (satellite static_dir → claude-webui shared

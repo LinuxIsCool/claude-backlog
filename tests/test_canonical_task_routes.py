@@ -105,3 +105,54 @@ def test_ambiguous_route_returns_409_with_targets(server):
     status, _, body = _get(server, "/backlog/tasks/ambiguous")
     assert status == 409
     assert json.loads(body)["targets"] == ["one", "two"]
+
+
+def _base_of(body):
+    import re
+    m = re.search(rb'<base href="([^"]*)"', body)
+    return m.group(1).decode() if m else None
+
+
+@pytest.mark.parametrize(
+    "path,app_root",
+    [
+        ("/tasks/stable-id", "/"),
+        ("/tasks/stable-id/", "/"),
+        ("/backlog/tasks/stable-id", "/backlog/"),
+        ("/backlog/tasks/stable-id/", "/backlog/"),
+    ],
+)
+def test_spa_at_a_canonical_task_route_resolves_relative_urls_to_the_app_root(
+    server, path, app_root
+):
+    """The shell is served one level deep, so `api/list` and `static/...` would
+    resolve into /tasks/<id>/ and 404. A <base> has to lift them back up.
+
+    The hub strips the mount prefix before the handler sees the path, so the
+    base cannot name /backlog itself; it has to be relative for the browser to
+    resolve against whatever prefix it is actually on.
+    """
+    from urllib.parse import urljoin
+
+    status, _, body = _get(server, path)
+    assert status == 200
+    base = _base_of(body)
+    assert base is not None, f"{path} serves no <base>; relative URLs resolve one level too deep"
+
+    document = urljoin("http://h", path)
+    resolved = urljoin(urljoin(document, base), "api/list")
+    assert resolved == f"http://h{app_root}api/list"
+
+
+def test_the_api_url_the_shell_would_request_actually_answers(server):
+    """Resolve the page's own relative URL and fetch it, rather than trusting
+    that a 200 on the shell means the page works."""
+    from urllib.parse import urljoin, urlparse
+
+    path = "/tasks/stable-id"
+    _, _, body = _get(server, path)
+    base = _base_of(body)
+    assert base is not None
+    target = urlparse(urljoin(urljoin(urljoin("http://h", path), base), "api/list")).path
+    status, _, _ = _get(server, target)
+    assert status == 200, f"the shell would request {target}, which answers {status}"
